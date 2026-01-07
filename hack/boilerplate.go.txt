@@ -1,0 +1,5 @@
+/*
+Copyright 2026 The Korp Authors.
+
+Licensed under the MIT License.
+*/

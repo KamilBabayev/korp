@@ -1,0 +1,14 @@
+apiVersion: korp.io/v1alpha1
+kind: KorpScan
+metadata:
+  name: cluster-wide-scan
+  namespace: korp-operator
+spec:
+  targetNamespace: "*"
+  intervalMinutes: 120
+  resourceTypes:
+    - configmaps
+    - secrets
+  reporting:
+    createEvents: false
+    historyLimit: 10

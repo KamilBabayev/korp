@@ -1,0 +1,17 @@
+apiVersion: korp.io/v1alpha1
+kind: KorpScan
+metadata:
+  name: production-scan
+  namespace: korp-operator
+spec:
+  targetNamespace: "production"
+  intervalMinutes: 15
+  filters:
+    excludeNamePatterns:
+      - "^default-token-.*"
+      - "^sh\\.helm\\..*"
+      - "^test-.*"
+  reporting:
+    createEvents: true
+    eventSeverity: "Warning"
+    historyLimit: 10

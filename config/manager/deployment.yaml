@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: korp-operator
+  namespace: korp-operator
+  labels:
+    app: korp-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: korp-operator
+  template:
+    metadata:
+      labels:
+        app: korp-operator
+    spec:
+      serviceAccountName: korp-operator
+      containers:
+        - name: korp-operator
+          image: korp-operator:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /korp-operator
+          args:
+            - --leader-elect
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+            - containerPort: 8081
+              name: health
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 65532
+      securityContext:
+        runAsNonRoot: true

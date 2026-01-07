@@ -32,4 +32,7 @@ go.work.sum
 # .idea/
 # .vscode/
 
+# Build binaries
+bin/
 korp
+korp-operator
