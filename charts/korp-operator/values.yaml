@@ -5,6 +5,10 @@
 # Namespace where the operator will be deployed
 namespaceOverride: ""
 
+# Override the full name to avoid repetition when release name matches chart name
+nameOverride: ""
+fullnameOverride: ""
+
 # Operator image configuration
 image:
   repository: korp-operator
