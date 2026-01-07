@@ -87,6 +87,10 @@ helm-uninstall: ## Uninstall Helm release
 helm-upgrade: ## Upgrade Helm release
 	helm upgrade korp-operator charts/korp-operator --namespace korp-operator
 
+.PHONY: helm-publish
+helm-publish: ## Publish Helm chart to GitHub Pages
+	./scripts/publish-helm-chart.sh
+
 ##@ Deployment
 
 .PHONY: install

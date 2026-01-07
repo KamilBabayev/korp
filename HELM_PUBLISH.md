@@ -1,29 +1,68 @@
 # Publishing Helm Chart to GitHub Pages
 
-This document explains how the Helm chart is automatically published and how users can install it.
+This document explains how to manually publish the Helm chart to GitHub Pages so users can install it without cloning the repository.
 
-## Automatic Publishing
+## Prerequisites
 
-The Helm chart is automatically published to GitHub Pages when changes are pushed to the `main` branch.
+- Helm 3.x installed
+- Git configured with push access to the repository
+- GitHub Pages enabled in repository settings
 
-### How it Works
+## First-Time Setup
 
-1. **GitHub Actions Workflow**: `.github/workflows/release-helm-chart.yaml` triggers on pushes to `main` that affect the chart
-2. **Chart Releaser**: Uses `helm/chart-releaser-action` to:
-   - Package the Helm chart
-   - Create a GitHub Release
-   - Update the Helm repository index (`index.yaml`)
-   - Publish to GitHub Pages
+### 1. Enable GitHub Pages
 
-### First-Time Setup (Already Done)
+1. Go to repository Settings → Pages
+2. Source: Deploy from a branch
+3. Branch: `gh-pages` / `root`
+4. Click Save
 
-These steps were completed during initial setup:
+The script will create the `gh-pages` branch automatically if it doesn't exist.
 
-1. ✅ Created `.github/workflows/release-helm-chart.yaml`
-2. ✅ Enabled GitHub Pages in repository settings
-   - Go to Settings → Pages
-   - Source: Deploy from a branch
-   - Branch: `gh-pages` / `root`
+## Publishing a New Chart Version
+
+### 1. Update Chart Version
+
+Edit `charts/korp-operator/Chart.yaml` and increment the version:
+
+```yaml
+version: 0.2.0  # Increment this
+appVersion: "0.2.0"  # Update if application version changed
+```
+
+### 2. Run the Publish Script
+
+From the repository root:
+
+```bash
+./scripts/publish-helm-chart.sh
+```
+
+Or using Make:
+
+```bash
+make helm-publish
+```
+
+The script will:
+- Package the Helm chart
+- Create/update the `gh-pages` branch
+- Generate/update the Helm repository index (`index.yaml`)
+- Commit and push to GitHub Pages
+
+### 3. Verify Publication
+
+After a few minutes, verify the chart is available:
+
+```bash
+# Check the index file
+curl https://kamilbabayev.github.io/korp/index.yaml
+
+# Test installation
+helm repo add korp https://kamilbabayev.github.io/korp
+helm repo update
+helm search repo korp --versions
+```
 
 ## For Users: Installing the Chart
 
@@ -43,88 +82,91 @@ helm install korp-operator korp/korp-operator \
 
 # Search for available versions
 helm search repo korp
+
+# Install specific version
+helm install korp-operator korp/korp-operator \
+  --version 0.1.0 \
+  --namespace korp-operator \
+  --create-namespace
 ```
-
-## For Maintainers: Publishing a New Version
-
-1. Update the chart version in `charts/korp-operator/Chart.yaml`:
-   ```yaml
-   version: 0.2.0  # Increment this
-   ```
-
-2. Commit and push to main:
-   ```bash
-   git add charts/korp-operator/Chart.yaml
-   git commit -m "Bump chart version to 0.2.0"
-   git push origin main
-   ```
-
-3. GitHub Actions will automatically:
-   - Package the chart
-   - Create a GitHub Release (v0.2.0)
-   - Update the Helm repository index
-   - Publish to GitHub Pages
-
-## Verifying Publication
-
-After pushing, check:
-
-1. **GitHub Actions**: https://github.com/kamilbabayev/korp/actions
-   - Verify "Release Helm Chart" workflow succeeded
-
-2. **GitHub Releases**: https://github.com/kamilbabayev/korp/releases
-   - New release should appear with chart package
-
-3. **GitHub Pages**: https://kamilbabayev.github.io/korp/index.yaml
-   - Should show updated chart version
-
-4. **Test Installation**:
-   ```bash
-   helm repo add korp https://kamilbabayev.github.io/korp
-   helm repo update
-   helm search repo korp --versions
-   ```
 
 ## Chart Repository Structure
 
-After publishing, GitHub Pages will host:
+After publishing, GitHub Pages hosts:
 
 ```
 https://kamilbabayev.github.io/korp/
 ├── index.yaml                      # Helm repository index
-└── korp-operator-0.1.0.tgz        # Packaged chart (in releases)
+├── korp-operator-0.1.0.tgz        # Packaged chart v0.1.0
+└── korp-operator-0.2.0.tgz        # Packaged chart v0.2.0
 ```
 
 ## Troubleshooting
 
-### Chart not appearing after push
+### Chart not appearing after publishing
 
-1. Check GitHub Actions logs for errors
-2. Verify GitHub Pages is enabled
-3. Ensure `gh-pages` branch exists
-4. Wait a few minutes for GitHub Pages to update
+1. Wait 5-10 minutes for GitHub Pages to update
+2. Check GitHub Pages is enabled in Settings
+3. Verify `gh-pages` branch exists and has commits
+4. Check repository visibility (public repositories work immediately)
 
 ### Version conflicts
 
 - Chart versions must be unique
-- Increment version in `Chart.yaml` before each release
+- Increment version in `Chart.yaml` before publishing
 - Follow semantic versioning (MAJOR.MINOR.PATCH)
+- Publishing the same version twice will overwrite the previous package
 
-### Manual Publishing (if needed)
+### Permission errors
 
-If automatic publishing fails:
+- Ensure you have push access to the repository
+- Check GitHub authentication is configured correctly
+- If using SSH, verify SSH keys are set up
+
+### Script fails on gh-pages branch
+
+If the script fails while on the `gh-pages` branch:
 
 ```bash
-# Package the chart
+# Switch back to main branch
+git checkout main
+
+# Clean up any uncommitted changes on gh-pages
+git checkout gh-pages
+git reset --hard origin/gh-pages
+git checkout main
+```
+
+## Manual Publishing (Alternative)
+
+If you prefer not to use the script:
+
+```bash
+# 1. Package the chart
 helm package charts/korp-operator -d dist/
 
-# Create/update index
-helm repo index dist/ --url https://kamilbabayev.github.io/korp
-
-# Commit to gh-pages branch
+# 2. Switch to gh-pages branch
 git checkout gh-pages
-cp dist/* .
-git add .
+
+# 3. Copy the package
+cp dist/korp-operator-*.tgz .
+
+# 4. Update the index
+helm repo index . --url https://kamilbabayev.github.io/korp
+
+# 5. Commit and push
+git add *.tgz index.yaml
 git commit -m "Release chart version X.Y.Z"
 git push origin gh-pages
+
+# 6. Switch back to main
+git checkout main
 ```
+
+## Best Practices
+
+1. **Version Bumping**: Always increment the chart version before publishing
+2. **Testing**: Test the chart locally with `helm install` before publishing
+3. **Changelog**: Document changes in the chart's README.md
+4. **AppVersion**: Update `appVersion` when the application version changes
+5. **Dependencies**: Run `helm dependency update` if chart has dependencies
