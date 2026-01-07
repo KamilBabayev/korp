@@ -36,22 +36,39 @@ make build-cli
 
 #### Installation
 
-1. **Install CRD**
-   ```bash
-   make install
-   ```
+**Option 1: Using Helm (Recommended)**
 
-2. **Deploy Operator**
-   ```bash
-   make deploy
-   ```
+```bash
+# Install the operator
+helm install korp-operator ./charts/korp-operator --namespace korp-operator --create-namespace
 
-3. **Create a KorpScan Resource**
-   ```bash
-   kubectl apply -f config/samples/basic_scan.yaml
-   ```
+# Or using make
+make helm-install
+```
+
+**Option 2: Using kubectl**
+
+```bash
+# Install CRD
+make install
+
+# Deploy Operator
+make deploy
+
+# Create a KorpScan Resource
+kubectl apply -f config/samples/basic_scan.yaml
+```
 
 #### Uninstall
+
+**Using Helm:**
+```bash
+helm uninstall korp-operator --namespace korp-operator
+# Or
+make helm-uninstall
+```
+
+**Using kubectl:**
 ```bash
 make undeploy
 make uninstall

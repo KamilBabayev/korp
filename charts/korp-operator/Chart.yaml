@@ -1,0 +1,18 @@
+apiVersion: v2
+name: korp-operator
+description: A Helm chart for Korp - Kubernetes Orphaned Resource Pointer Operator
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - operator
+  - orphaned-resources
+  - cleanup
+  - monitoring
+home: https://github.com/kamilbabayev/korp
+sources:
+  - https://github.com/kamilbabayev/korp
+maintainers:
+  - name: Kamil Babayev
+icon: https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.png

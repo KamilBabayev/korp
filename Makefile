@@ -61,6 +61,32 @@ docker-build: test ## Build docker image
 docker-push: ## Push docker image
 	docker push ${IMG}
 
+##@ Helm
+
+.PHONY: helm-lint
+helm-lint: ## Lint Helm chart
+	helm lint charts/korp-operator
+
+.PHONY: helm-template
+helm-template: ## Template Helm chart
+	helm template korp-operator charts/korp-operator --namespace korp-operator
+
+.PHONY: helm-package
+helm-package: ## Package Helm chart
+	helm package charts/korp-operator -d dist/
+
+.PHONY: helm-install
+helm-install: ## Install using Helm
+	helm install korp-operator charts/korp-operator --namespace korp-operator --create-namespace
+
+.PHONY: helm-uninstall
+helm-uninstall: ## Uninstall Helm release
+	helm uninstall korp-operator --namespace korp-operator
+
+.PHONY: helm-upgrade
+helm-upgrade: ## Upgrade Helm release
+	helm upgrade korp-operator charts/korp-operator --namespace korp-operator
+
 ##@ Deployment
 
 .PHONY: install

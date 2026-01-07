@@ -1,0 +1,16 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "korp-operator.fullname" . }}-rolebinding
+  labels:
+    {{- include "korp-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "korp-operator.fullname" . }}-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "korp-operator.serviceAccountName" . }}
+    namespace: {{ include "korp-operator.namespace" . }}
+{{- end }}

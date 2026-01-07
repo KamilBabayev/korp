@@ -1,0 +1,45 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+The korp-operator has been deployed to namespace: {{ include "korp-operator.namespace" . }}
+
+To verify the operator is running:
+
+  kubectl get pods -n {{ include "korp-operator.namespace" . }} -l app.kubernetes.io/name={{ include "korp-operator.name" . }}
+
+To create a KorpScan resource to start scanning for orphaned resources:
+
+  cat <<EOF | kubectl apply -f -
+  apiVersion: korp.io/v1alpha1
+  kind: KorpScan
+  metadata:
+    name: my-scan
+    namespace: {{ include "korp-operator.namespace" . }}
+  spec:
+    targetNamespace: "default"
+    intervalMinutes: 30
+    resourceTypes:
+      - configmaps
+      - secrets
+      - pvcs
+      - services
+    reporting:
+      createEvents: true
+      eventSeverity: "Warning"
+      historyLimit: 5
+  EOF
+
+To view your KorpScan resources:
+
+  kubectl get korpscans -n {{ include "korp-operator.namespace" . }}
+
+To view detailed scan results:
+
+  kubectl describe korpscan my-scan -n {{ include "korp-operator.namespace" . }}
+
+To view operator logs:
+
+  kubectl logs -n {{ include "korp-operator.namespace" . }} deployment/{{ include "korp-operator.fullname" . }}
+
+For more information, visit: {{ .Chart.Home }}

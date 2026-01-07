@@ -35,4 +35,9 @@ go.work.sum
 # Build binaries
 bin/
 korp
-korp-operator
+#korp-operator
+/korp-operator
+
+# Helm packages
+dist/
+*.tgz

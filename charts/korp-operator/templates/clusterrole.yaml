@@ -1,0 +1,72 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "korp-operator.fullname" . }}-role
+  labels:
+    {{- include "korp-operator.labels" . | nindent 4 }}
+rules:
+  # KorpScan resources
+  - apiGroups:
+      - korp.io
+    resources:
+      - korpscans
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - korp.io
+    resources:
+      - korpscans/status
+    verbs:
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - korp.io
+    resources:
+      - korpscans/finalizers
+    verbs:
+      - update
+
+  # Core resources to scan
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - secrets
+      - persistentvolumeclaims
+      - services
+      - endpoints
+    verbs:
+      - get
+      - list
+
+  # Events for reporting
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+
+  # Leader election
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+{{- end }}
