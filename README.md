@@ -36,9 +36,26 @@ make build-cli
 
 #### Installation
 
-**Option 1: Using Helm (Recommended)**
+**Option 1: Using Helm from Public Repository (Recommended)**
 
 ```bash
+# Add the Helm repository
+helm repo add korp https://kamilbabayev.github.io/korp
+
+# Update your local Helm chart repository cache
+helm repo update
+
+# Install the operator
+helm install korp-operator korp/korp-operator --namespace korp-operator --create-namespace
+```
+
+**Option 2: Using Helm from Source**
+
+```bash
+# Clone the repository first
+git clone https://github.com/kamilbabayev/korp.git
+cd korp
+
 # Install the operator
 helm install korp-operator ./charts/korp-operator --namespace korp-operator --create-namespace
 
@@ -46,7 +63,7 @@ helm install korp-operator ./charts/korp-operator --namespace korp-operator --cr
 make helm-install
 ```
 
-**Option 2: Using kubectl**
+**Option 3: Using kubectl**
 
 ```bash
 # Install CRD
