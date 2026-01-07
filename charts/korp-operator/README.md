@@ -9,6 +9,21 @@ This Helm chart deploys the Korp operator for detecting and reporting orphaned K
 
 ## Installing the Chart
 
+### From Public Helm Repository (Recommended)
+
+```bash
+# Add the Helm repository
+helm repo add korp https://kamilbabayev.github.io/korp
+
+# Update your local Helm chart repository cache
+helm repo update
+
+# Install the chart
+helm install korp-operator korp/korp-operator --namespace korp-operator --create-namespace
+```
+
+### From Source
+
 To install the chart with the release name `korp-operator`:
 
 ```bash
