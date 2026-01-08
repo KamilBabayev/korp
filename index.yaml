@@ -1,0 +1,48 @@
+apiVersion: v1
+entries:
+  korp:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2026-01-08T15:46:39.270338+04:00"
+    description: A Helm chart for Korp - Kubernetes Orphaned Resource Pointer Operator
+    digest: 00402173c0f708b69f17dbc5f638b2a9de35def84cbbc931a8b3161d2c72d7b0
+    home: https://github.com/kamilbabayev/korp
+    icon: https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.png
+    keywords:
+    - kubernetes
+    - operator
+    - orphaned-resources
+    - cleanup
+    - monitoring
+    maintainers:
+    - name: Kamil Babayev
+    name: korp
+    sources:
+    - https://github.com/kamilbabayev/korp
+    type: application
+    urls:
+    - https://kamilbabayev.github.io/korp/korp-0.1.0.tgz
+    version: 0.1.0
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2026-01-08T15:46:39.270853+04:00"
+    description: A Helm chart for Korp - Kubernetes Orphaned Resource Pointer Operator
+    digest: 00402173c0f708b69f17dbc5f638b2a9de35def84cbbc931a8b3161d2c72d7b0
+    home: https://github.com/kamilbabayev/korp
+    icon: https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.png
+    keywords:
+    - kubernetes
+    - operator
+    - orphaned-resources
+    - cleanup
+    - monitoring
+    maintainers:
+    - name: Kamil Babayev
+    name: korp
+    sources:
+    - https://github.com/kamilbabayev/korp
+    type: application
+    urls:
+    - https://kamilbabayev.github.io/korp/dist/korp-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-01-08T15:46:39.269177+04:00"
