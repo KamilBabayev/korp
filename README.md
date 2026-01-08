@@ -46,7 +46,7 @@ helm repo add korp https://kamilbabayev.github.io/korp
 helm repo update
 
 # Install the operator
-helm install korp-operator korp/korp-operator --namespace korp-operator --create-namespace
+helm install korp korp/korp --namespace korp-operator --create-namespace
 ```
 
 **Option 2: Using Helm from Source**
@@ -57,7 +57,7 @@ git clone https://github.com/kamilbabayev/korp.git
 cd korp
 
 # Install the operator
-helm install korp-operator ./charts/korp-operator --namespace korp-operator --create-namespace
+helm install korp ./charts/korp --namespace korp-operator --create-namespace
 
 # Or using make
 make helm-install
@@ -80,7 +80,7 @@ kubectl apply -f config/samples/basic_scan.yaml
 
 **Using Helm:**
 ```bash
-helm uninstall korp-operator --namespace korp-operator
+helm uninstall korp --namespace korp-operator
 # Or
 make helm-uninstall
 ```

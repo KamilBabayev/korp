@@ -2,11 +2,11 @@ Thank you for installing {{ .Chart.Name }}!
 
 Your release is named {{ .Release.Name }}.
 
-The korp-operator has been deployed to namespace: {{ include "korp-operator.namespace" . }}
+The korp has been deployed to namespace: {{ include "korp.namespace" . }}
 
 To verify the operator is running:
 
-  kubectl get pods -n {{ include "korp-operator.namespace" . }} -l app.kubernetes.io/name={{ include "korp-operator.name" . }}
+  kubectl get pods -n {{ include "korp.namespace" . }} -l app.kubernetes.io/name={{ include "korp.name" . }}
 
 To create a KorpScan resource to start scanning for orphaned resources:
 
@@ -15,7 +15,7 @@ To create a KorpScan resource to start scanning for orphaned resources:
   kind: KorpScan
   metadata:
     name: my-scan
-    namespace: {{ include "korp-operator.namespace" . }}
+    namespace: {{ include "korp.namespace" . }}
   spec:
     targetNamespace: "default"
     intervalMinutes: 30
@@ -32,14 +32,14 @@ To create a KorpScan resource to start scanning for orphaned resources:
 
 To view your KorpScan resources:
 
-  kubectl get korpscans -n {{ include "korp-operator.namespace" . }}
+  kubectl get korpscans -n {{ include "korp.namespace" . }}
 
 To view detailed scan results:
 
-  kubectl describe korpscan my-scan -n {{ include "korp-operator.namespace" . }}
+  kubectl describe korpscan my-scan -n {{ include "korp.namespace" . }}
 
 To view operator logs:
 
-  kubectl logs -n {{ include "korp-operator.namespace" . }} deployment/{{ include "korp-operator.fullname" . }}
+  kubectl logs -n {{ include "korp.namespace" . }} deployment/{{ include "korp.fullname" . }}
 
 For more information, visit: {{ .Chart.Home }}

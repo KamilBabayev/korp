@@ -1,5 +1,5 @@
 apiVersion: v2
-name: korp-operator
+name: korp
 description: A Helm chart for Korp - Kubernetes Orphaned Resource Pointer Operator
 type: application
 version: 0.1.0

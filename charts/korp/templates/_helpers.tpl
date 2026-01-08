@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "korp-operator.name" -}}
+{{- define "korp.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "korp-operator.fullname" -}}
+{{- define "korp.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "korp-operator.chart" -}}
+{{- define "korp.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "korp-operator.labels" -}}
-helm.sh/chart: {{ include "korp-operator.chart" . }}
-{{ include "korp-operator.selectorLabels" . }}
+{{- define "korp.labels" -}}
+helm.sh/chart: {{ include "korp.chart" . }}
+{{ include "korp.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -43,17 +43,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "korp-operator.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "korp-operator.name" . }}
+{{- define "korp.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "korp.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "korp-operator.serviceAccountName" -}}
+{{- define "korp.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "korp-operator.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "korp.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -62,7 +62,7 @@ Create the name of the service account to use
 {{/*
 Create the namespace
 */}}
-{{- define "korp-operator.namespace" -}}
+{{- define "korp.namespace" -}}
 {{- if .Values.namespaceOverride }}
 {{- .Values.namespaceOverride }}
 {{- else }}

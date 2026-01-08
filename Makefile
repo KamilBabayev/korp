@@ -65,27 +65,27 @@ docker-push: ## Push docker image
 
 .PHONY: helm-lint
 helm-lint: ## Lint Helm chart
-	helm lint charts/korp-operator
+	helm lint charts/korp
 
 .PHONY: helm-template
 helm-template: ## Template Helm chart
-	helm template korp-operator charts/korp-operator --namespace korp-operator
+	helm template korp charts/korp --namespace korp-operator
 
 .PHONY: helm-package
 helm-package: ## Package Helm chart
-	helm package charts/korp-operator -d dist/
+	helm package charts/korp -d dist/
 
 .PHONY: helm-install
 helm-install: ## Install using Helm
-	helm install korp-operator charts/korp-operator --namespace korp-operator --create-namespace
+	helm install korp charts/korp --namespace korp-operator --create-namespace
 
 .PHONY: helm-uninstall
 helm-uninstall: ## Uninstall Helm release
-	helm uninstall korp-operator --namespace korp-operator
+	helm uninstall korp --namespace korp-operator
 
 .PHONY: helm-upgrade
 helm-upgrade: ## Upgrade Helm release
-	helm upgrade korp-operator charts/korp-operator --namespace korp-operator
+	helm upgrade korp charts/korp --namespace korp-operator
 
 .PHONY: helm-publish
 helm-publish: ## Publish Helm chart to GitHub Pages

@@ -19,29 +19,29 @@ helm repo add korp https://kamilbabayev.github.io/korp
 helm repo update
 
 # Install the chart
-helm install korp-operator korp/korp-operator --namespace korp-operator --create-namespace
+helm install korp korp/korp --namespace korp-operator --create-namespace
 ```
 
 ### From Source
 
-To install the chart with the release name `korp-operator`:
+To install the chart with the release name `korp`:
 
 ```bash
-helm install korp-operator ./charts/korp-operator
+helm install korp ./charts/korp
 ```
 
 To install in a specific namespace:
 
 ```bash
-helm install korp-operator ./charts/korp-operator --namespace korp-operator --create-namespace
+helm install korp ./charts/korp --namespace korp-operator --create-namespace
 ```
 
 ## Uninstalling the Chart
 
-To uninstall/delete the `korp-operator` deployment:
+To uninstall/delete the `korp` deployment:
 
 ```bash
-helm uninstall korp-operator --namespace korp-operator
+helm uninstall korp --namespace korp-operator
 ```
 
 ## Configuration
@@ -107,7 +107,7 @@ tolerations:
 Install with custom values:
 
 ```bash
-helm install korp-operator ./charts/korp-operator -f custom-values.yaml
+helm install korp ./charts/korp -f custom-values.yaml
 ```
 
 ## Example: Creating a KorpScan
@@ -139,7 +139,7 @@ spec:
 To upgrade the operator:
 
 ```bash
-helm upgrade korp-operator ./charts/korp-operator
+helm upgrade korp ./charts/korp
 ```
 
 ## Development
@@ -147,17 +147,17 @@ helm upgrade korp-operator ./charts/korp-operator
 To lint the chart:
 
 ```bash
-helm lint ./charts/korp-operator
+helm lint ./charts/korp
 ```
 
 To template the chart (dry-run):
 
 ```bash
-helm template korp-operator ./charts/korp-operator
+helm template korp ./charts/korp
 ```
 
 To package the chart:
 
 ```bash
-helm package ./charts/korp-operator
+helm package ./charts/korp
 ```

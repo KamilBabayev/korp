@@ -23,7 +23,7 @@ The script will create the `gh-pages` branch automatically if it doesn't exist.
 
 ### 1. Update Chart Version
 
-Edit `charts/korp-operator/Chart.yaml` and increment the version:
+Edit `charts/korp/Chart.yaml` and increment the version:
 
 ```yaml
 version: 0.2.0  # Increment this
@@ -76,7 +76,7 @@ helm repo add korp https://kamilbabayev.github.io/korp
 helm repo update
 
 # Install the operator
-helm install korp-operator korp/korp-operator \
+helm install korp korp/korp \
   --namespace korp-operator \
   --create-namespace
 
@@ -84,7 +84,7 @@ helm install korp-operator korp/korp-operator \
 helm search repo korp
 
 # Install specific version
-helm install korp-operator korp/korp-operator \
+helm install korp korp/korp \
   --version 0.1.0 \
   --namespace korp-operator \
   --create-namespace
@@ -96,9 +96,9 @@ After publishing, GitHub Pages hosts:
 
 ```
 https://kamilbabayev.github.io/korp/
-├── index.yaml                      # Helm repository index
-├── korp-operator-0.1.0.tgz        # Packaged chart v0.1.0
-└── korp-operator-0.2.0.tgz        # Packaged chart v0.2.0
+├── index.yaml                # Helm repository index
+├── korp-0.1.0.tgz           # Packaged chart v0.1.0
+└── korp-0.2.0.tgz           # Packaged chart v0.2.0
 ```
 
 ## Troubleshooting
@@ -143,13 +143,13 @@ If you prefer not to use the script:
 
 ```bash
 # 1. Package the chart
-helm package charts/korp-operator -d dist/
+helm package charts/korp -d dist/
 
 # 2. Switch to gh-pages branch
 git checkout gh-pages
 
 # 3. Copy the package
-cp dist/korp-operator-*.tgz .
+cp dist/korp-*.tgz .
 
 # 4. Update the index
 helm repo index . --url https://kamilbabayev.github.io/korp

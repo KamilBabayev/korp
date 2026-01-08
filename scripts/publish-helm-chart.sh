@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CHART_DIR="charts/korp-operator"
+CHART_DIR="charts/korp"
 DIST_DIR="dist"
 REPO_URL="https://kamilbabayev.github.io/korp"
 
@@ -14,7 +14,7 @@ if ! command -v helm &> /dev/null; then
 fi
 
 # Check if we're in the git repository root
-if [ ! -f "Chart.yaml" ] && [ ! -d "charts/korp-operator" ]; then
+if [ ! -f "Chart.yaml" ] && [ ! -d "charts/korp" ]; then
     echo "Error: Must run from repository root"
     exit 1
 fi
@@ -50,7 +50,7 @@ echo "==> Switching to gh-pages branch..."
 git checkout gh-pages
 
 # Copy packaged chart
-cp ${DIST_DIR}/korp-operator-${CHART_VERSION}.tgz .
+cp ${DIST_DIR}/korp-${CHART_VERSION}.tgz .
 
 # Update or create index
 echo "==> Updating Helm repository index..."
@@ -58,8 +58,8 @@ helm repo index . --url ${REPO_URL}
 
 # Commit and push
 echo "==> Committing changes..."
-git add korp-operator-${CHART_VERSION}.tgz index.yaml
-git commit -m "Release korp-operator chart version ${CHART_VERSION}"
+git add korp-${CHART_VERSION}.tgz index.yaml
+git commit -m "Release korp chart version ${CHART_VERSION}"
 
 echo "==> Pushing to gh-pages branch..."
 git push origin gh-pages
@@ -76,6 +76,6 @@ echo ""
 echo "Users can now install with:"
 echo "  helm repo add korp ${REPO_URL}"
 echo "  helm repo update"
-echo "  helm install korp-operator korp/korp-operator"
+echo "  helm install korp korp/korp"
 echo ""
 echo "Verify at: ${REPO_URL}/index.yaml"
