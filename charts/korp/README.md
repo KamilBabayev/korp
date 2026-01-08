@@ -19,7 +19,7 @@ helm repo add korp https://kamilbabayev.github.io/korp
 helm repo update
 
 # Install the chart
-helm install korp korp/korp --namespace korp-operator --create-namespace
+helm install korp korp/korp --namespace korp --create-namespace
 ```
 
 ### From Source
@@ -33,7 +33,7 @@ helm install korp ./charts/korp
 To install in a specific namespace:
 
 ```bash
-helm install korp ./charts/korp --namespace korp-operator --create-namespace
+helm install korp ./charts/korp --namespace korp --create-namespace
 ```
 
 ## Uninstalling the Chart
@@ -41,7 +41,7 @@ helm install korp ./charts/korp --namespace korp-operator --create-namespace
 To uninstall/delete the `korp` deployment:
 
 ```bash
-helm uninstall korp --namespace korp-operator
+helm uninstall korp --namespace korp
 ```
 
 ## Configuration
@@ -119,7 +119,7 @@ apiVersion: korp.io/v1alpha1
 kind: KorpScan
 metadata:
   name: default-scan
-  namespace: korp-operator
+  namespace: korp
 spec:
   targetNamespace: "default"
   intervalMinutes: 30

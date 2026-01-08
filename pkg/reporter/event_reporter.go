@@ -31,7 +31,7 @@ func NewEventReporter(client kubernetes.Interface, scheme *runtime.Scheme) *Even
 	broadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
 		Interface: client.CoreV1().Events(""),
 	})
-	recorder := broadcaster.NewRecorder(scheme, corev1.EventSource{Component: "korp-operator"})
+	recorder := broadcaster.NewRecorder(scheme, corev1.EventSource{Component: "korp"})
 
 	return &EventReporter{recorder: recorder}
 }

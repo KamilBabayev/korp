@@ -2,7 +2,7 @@ apiVersion: korp.io/v1alpha1
 kind: KorpScan
 metadata:
   name: production-scan
-  namespace: korp-operator
+  namespace: korp
 spec:
   targetNamespace: "production"
   intervalMinutes: 15

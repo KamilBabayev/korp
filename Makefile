@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= korp-operator:latest
+IMG ?= kamilbabayev/korp:latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -69,7 +69,7 @@ helm-lint: ## Lint Helm chart
 
 .PHONY: helm-template
 helm-template: ## Template Helm chart
-	helm template korp charts/korp --namespace korp-operator
+	helm template korp charts/korp --namespace korp
 
 .PHONY: helm-package
 helm-package: ## Package Helm chart
@@ -77,15 +77,15 @@ helm-package: ## Package Helm chart
 
 .PHONY: helm-install
 helm-install: ## Install using Helm
-	helm install korp charts/korp --namespace korp-operator --create-namespace
+	helm install korp charts/korp --namespace korp --create-namespace
 
 .PHONY: helm-uninstall
 helm-uninstall: ## Uninstall Helm release
-	helm uninstall korp --namespace korp-operator
+	helm uninstall korp --namespace korp
 
 .PHONY: helm-upgrade
 helm-upgrade: ## Upgrade Helm release
-	helm upgrade korp charts/korp --namespace korp-operator
+	helm upgrade korp charts/korp --namespace korp
 
 .PHONY: helm-publish
 helm-publish: ## Publish Helm chart to GitHub Pages
@@ -103,7 +103,7 @@ uninstall: manifests ## Uninstall CRDs from the K8s cluster
 
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster
-	kubectl create namespace korp-operator --dry-run=client -o yaml | kubectl apply -f -
+	kubectl create namespace korp --dry-run=client -o yaml | kubectl apply -f -
 	kubectl apply -f config/rbac/
 	kubectl apply -f config/manager/
 

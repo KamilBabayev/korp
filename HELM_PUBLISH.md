@@ -77,7 +77,7 @@ helm repo update
 
 # Install the operator
 helm install korp korp/korp \
-  --namespace korp-operator \
+  --namespace korp \
   --create-namespace
 
 # Search for available versions
@@ -86,7 +86,7 @@ helm search repo korp
 # Install specific version
 helm install korp korp/korp \
   --version 0.1.0 \
-  --namespace korp-operator \
+  --namespace korp \
   --create-namespace
 ```
 

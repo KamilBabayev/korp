@@ -46,7 +46,7 @@ helm repo add korp https://kamilbabayev.github.io/korp
 helm repo update
 
 # Install the operator
-helm install korp korp/korp --namespace korp-operator --create-namespace
+helm install korp korp/korp --namespace korp --create-namespace
 ```
 
 **Option 2: Using Helm from Source**
@@ -57,7 +57,7 @@ git clone https://github.com/kamilbabayev/korp.git
 cd korp
 
 # Install the operator
-helm install korp ./charts/korp --namespace korp-operator --create-namespace
+helm install korp ./charts/korp --namespace korp --create-namespace
 
 # Or using make
 make helm-install
@@ -80,7 +80,7 @@ kubectl apply -f config/samples/basic_scan.yaml
 
 **Using Helm:**
 ```bash
-helm uninstall korp --namespace korp-operator
+helm uninstall korp --namespace korp
 # Or
 make helm-uninstall
 ```
@@ -100,7 +100,7 @@ apiVersion: korp.io/v1alpha1
 kind: KorpScan
 metadata:
   name: default-namespace-scan
-  namespace: korp-operator
+  namespace: korp
 spec:
   targetNamespace: "default"
   intervalMinutes: 30
@@ -122,7 +122,7 @@ apiVersion: korp.io/v1alpha1
 kind: KorpScan
 metadata:
   name: cluster-scan
-  namespace: korp-operator
+  namespace: korp
 spec:
   targetNamespace: "*"
   intervalMinutes: 120
@@ -138,7 +138,7 @@ apiVersion: korp.io/v1alpha1
 kind: KorpScan
 metadata:
   name: production-scan
-  namespace: korp-operator
+  namespace: korp
 spec:
   targetNamespace: "production"
   intervalMinutes: 15
@@ -185,17 +185,17 @@ spec:
 ### Check KorpScan Status
 ```bash
 kubectl get korpscans -A
-kubectl describe korpscan default-namespace-scan -n korp-operator
+kubectl describe korpscan default-namespace-scan -n korp
 ```
 
 ### View Findings
 ```bash
-kubectl get korpscan default-namespace-scan -n korp-operator -o jsonpath='{.status.findings}' | jq
+kubectl get korpscan default-namespace-scan -n korp -o jsonpath='{.status.findings}' | jq
 ```
 
 ### View Events
 ```bash
-kubectl get events -n korp-operator --field-selector involvedObject.kind=KorpScan
+kubectl get events -n korp --field-selector involvedObject.kind=KorpScan
 ```
 
 ## Development
@@ -273,13 +273,13 @@ The operator requires the following permissions:
 
 ### Operator not starting
 ```bash
-kubectl logs -n korp-operator deployment/korp-operator
+kubectl logs -n korp deployment/korp-operator
 ```
 
 ### Scans not running
 Check the KorpScan status:
 ```bash
-kubectl describe korpscan <name> -n korp-operator
+kubectl describe korpscan <name> -n korp
 ```
 
 ### No events created
