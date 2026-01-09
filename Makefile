@@ -1,5 +1,6 @@
 # Image URL to use all building/pushing image targets
 IMG ?= kamilbabayev/korp:latest
+IMG_CLI ?= kamilbabayev/korp-cli:latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -43,15 +44,15 @@ test: manifests generate fmt vet ## Run tests
 
 .PHONY: build
 build: manifests generate fmt vet ## Build korp-operator binary
-	go build -o bin/korp-operator cmd/manager/main.go
+	go build -o bin/korp-operator cmd/operator/main.go
 
 .PHONY: build-cli
 build-cli: ## Build korp CLI binary
-	go build -o bin/korp cmd/korp/main.go
+	go build -o bin/korp cmd/cli/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run operator from your host
-	go run cmd/manager/main.go
+	go run cmd/operator/main.go
 
 .PHONY: docker-build
 docker-build: test ## Build docker image
@@ -60,6 +61,14 @@ docker-build: test ## Build docker image
 .PHONY: docker-push
 docker-push: ## Push docker image
 	docker push ${IMG}
+
+.PHONY: docker-build-cli
+docker-build-cli: ## Build CLI docker image
+	docker build -f Dockerfile.cli -t ${IMG_CLI} .
+
+.PHONY: docker-push-cli
+docker-push-cli: ## Push CLI docker image
+	docker push ${IMG_CLI}
 
 ##@ Helm
 
@@ -105,11 +114,11 @@ uninstall: manifests ## Uninstall CRDs from the K8s cluster
 deploy: manifests ## Deploy controller to the K8s cluster
 	kubectl create namespace korp --dry-run=client -o yaml | kubectl apply -f -
 	kubectl apply -f config/rbac/
-	kubectl apply -f config/manager/
+	kubectl apply -f config/operator/
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster
-	kubectl delete -f config/manager/
+	kubectl delete -f config/operator/
 	kubectl delete -f config/rbac/
 
 ##@ Build Dependencies

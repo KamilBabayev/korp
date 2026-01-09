@@ -11,14 +11,14 @@ RUN go mod download
 COPY . .
 
 # Build the operator
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o korp-operator cmd/manager/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o korp cmd/operator/main.go
 
 # Runtime stage
 FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /
-COPY --from=builder /workspace/korp-operator .
+COPY --from=builder /workspace/korp .
 
 USER 65532:65532
 
-ENTRYPOINT ["/korp-operator"]
+ENTRYPOINT ["/korp"]

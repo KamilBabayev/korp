@@ -1,0 +1,28 @@
+# Build stage
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /workspace
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the CLI
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o korp cmd/cli/main.go
+
+# Runtime stage - using alpine for CLI tools
+FROM alpine:3.19
+
+WORKDIR /
+
+# Add ca-certificates for HTTPS requests
+RUN apk --no-cache add ca-certificates
+
+COPY --from=builder /workspace/korp .
+
+USER nobody:nobody
+
+ENTRYPOINT ["/korp"]
