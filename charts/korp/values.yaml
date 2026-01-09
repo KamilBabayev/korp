@@ -101,3 +101,42 @@ metrics:
 healthProbe:
   enabled: true
   port: 8081
+
+# CLI Job configuration (optional - for scheduled ad-hoc scans)
+cliJob:
+  # Set to true to deploy a CronJob that runs periodic CLI scans
+  enabled: false
+
+  # Cron schedule (default: every day at 2am)
+  schedule: "0 2 * * *"
+
+  # CLI image configuration
+  image:
+    repository: kamilbabayev/korp-cli
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+  # Target namespace to scan (leave empty to use default namespace)
+  namespace: ""
+
+  # Set to true to scan all namespaces
+  allNamespaces: true
+
+  # Output format: table or json
+  outputFormat: "table"
+
+  # Job history limits
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  # Concurrency policy: Allow, Forbid, or Replace
+  concurrencyPolicy: Forbid
+
+  # Resource limits for CLI job
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 50m
+      memory: 32Mi

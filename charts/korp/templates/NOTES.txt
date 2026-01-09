@@ -2,13 +2,19 @@ Thank you for installing {{ .Chart.Name }}!
 
 Your release is named {{ .Release.Name }}.
 
-The korp has been deployed to namespace: {{ include "korp.namespace" . }}
+Korp provides TWO ways to find orphaned resources:
+
+================================================================================
+1. OPERATOR - Continuous Monitoring (Deployed)
+================================================================================
+
+The korp operator has been deployed to namespace: {{ include "korp.namespace" . }}
 
 To verify the operator is running:
 
   kubectl get pods -n {{ include "korp.namespace" . }} -l app.kubernetes.io/name={{ include "korp.name" . }}
 
-To create a KorpScan resource to start scanning for orphaned resources:
+Create a KorpScan resource to start continuous monitoring:
 
   cat <<EOF | kubectl apply -f -
   apiVersion: korp.io/v1alpha1
@@ -30,16 +36,64 @@ To create a KorpScan resource to start scanning for orphaned resources:
       historyLimit: 5
   EOF
 
-To view your KorpScan resources:
+View your KorpScan resources:
 
   kubectl get korpscans -n {{ include "korp.namespace" . }}
-
-To view detailed scan results:
-
   kubectl describe korpscan my-scan -n {{ include "korp.namespace" . }}
 
-To view operator logs:
+View operator logs:
 
   kubectl logs -n {{ include "korp.namespace" . }} deployment/{{ include "korp.fullname" . }}
+
+================================================================================
+2. CLI - Ad-hoc Scans
+================================================================================
+
+{{- if .Values.cliJob.enabled }}
+CLI CronJob is ENABLED - Scheduled scans will run: {{ .Values.cliJob.schedule }}
+
+View scheduled jobs:
+
+  kubectl get cronjobs -n {{ include "korp.namespace" . }}
+  kubectl get jobs -n {{ include "korp.namespace" . }}
+
+View job logs:
+
+  kubectl logs -n {{ include "korp.namespace" . }} -l app.kubernetes.io/component=cli
+
+{{- else }}
+CLI CronJob is DISABLED. To enable scheduled CLI scans, upgrade with:
+
+  helm upgrade {{ .Release.Name }} charts/korp --set cliJob.enabled=true
+
+{{- end }}
+
+Run one-time scans using the korp CLI in a pod:
+
+# Scan a specific namespace
+  kubectl run korp-scan --rm -it --restart=Never \
+    --image=kamilbabayev/korp-cli:latest \
+    --serviceaccount={{ include "korp.serviceAccountName" . }} \
+    -- korp --namespace default
+
+# Scan all namespaces
+  kubectl run korp-scan --rm -it --restart=Never \
+    --image=kamilbabayev/korp-cli:latest \
+    --serviceaccount={{ include "korp.serviceAccountName" . }} \
+    -- korp --all-namespaces
+
+# Get JSON output
+  kubectl run korp-scan --rm -it --restart=Never \
+    --image=kamilbabayev/korp-cli:latest \
+    --serviceaccount={{ include "korp.serviceAccountName" . }} \
+    -- korp --namespace default --output json
+
+Or download the CLI binary locally:
+
+  # From releases page or build from source
+  go install github.com/kamilbabayev/korp/cmd/cli@latest
+  korp --namespace default
+
+================================================================================
 
 For more information, visit: {{ .Chart.Home }}
