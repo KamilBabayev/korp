@@ -71,21 +71,21 @@ CLI CronJob is DISABLED. To enable scheduled CLI scans, upgrade with:
 Run one-time scans using the korp CLI in a pod:
 
 # Scan a specific namespace
-  kubectl run korp-scan --rm -it --restart=Never \
+  kubectl run korp-scan --rm -i --restart=Never \
     --image=kamilbabayev/korp-cli:latest \
-    --serviceaccount={{ include "korp.serviceAccountName" . }} \
+    -n {{ include "korp.namespace" . }} \
     -- korp --namespace default
 
 # Scan all namespaces
-  kubectl run korp-scan --rm -it --restart=Never \
+  kubectl run korp-scan --rm -i --restart=Never \
     --image=kamilbabayev/korp-cli:latest \
-    --serviceaccount={{ include "korp.serviceAccountName" . }} \
+    -n {{ include "korp.namespace" . }} \
     -- korp --all-namespaces
 
 # Get JSON output
-  kubectl run korp-scan --rm -it --restart=Never \
+  kubectl run korp-scan --rm -i --restart=Never \
     --image=kamilbabayev/korp-cli:latest \
-    --serviceaccount={{ include "korp.serviceAccountName" . }} \
+    -n {{ include "korp.namespace" . }} \
     -- korp --namespace default --output json
 
 Or download the CLI binary locally:
