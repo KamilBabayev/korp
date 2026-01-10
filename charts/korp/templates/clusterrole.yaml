@@ -48,6 +48,33 @@ rules:
       - get
       - list
 
+  # Apps resources to scan
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    verbs:
+      - get
+      - list
+
+  # Batch resources to scan
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+    verbs:
+      - get
+      - list
+
+  # Networking resources to scan
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+
   # Events for reporting
   - apiGroups:
       - ""

@@ -114,11 +114,25 @@ type ScanSummary struct {
 
 	// ServicesWithoutEndpoints is the count of Services without Endpoints
 	ServicesWithoutEndpoints int `json:"servicesWithoutEndpoints"`
+
+	// OrphanedDeployments is the count of orphaned Deployments
+	// +optional
+	OrphanedDeployments int `json:"orphanedDeployments,omitempty"`
+
+	// OrphanedJobs is the count of orphaned Jobs
+	// +optional
+	OrphanedJobs int `json:"orphanedJobs,omitempty"`
+
+	// OrphanedIngresses is the count of orphaned Ingresses
+	// +optional
+	OrphanedIngresses int `json:"orphanedIngresses,omitempty"`
 }
 
 // TotalOrphans returns the sum of all orphaned resources
 func (s *ScanSummary) TotalOrphans() int {
-	return s.OrphanedConfigMaps + s.OrphanedSecrets + s.OrphanedPVCs + s.ServicesWithoutEndpoints
+	return s.OrphanedConfigMaps + s.OrphanedSecrets + s.OrphanedPVCs +
+		s.ServicesWithoutEndpoints + s.OrphanedDeployments +
+		s.OrphanedJobs + s.OrphanedIngresses
 }
 
 // Finding represents a single orphaned resource

@@ -43,7 +43,7 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 	types := korpScan.Spec.ResourceTypes
 	if len(types) == 0 {
 		// Default to all resource types
-		types = []string{"configmaps", "secrets", "pvcs", "services"}
+		types = []string{"configmaps", "secrets", "pvcs", "services", "deployments", "jobs", "ingresses"}
 	}
 
 	// Scan each requested resource type
@@ -66,6 +66,21 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 
 		case "services":
 			if err := s.scanServices(ctx, ns, korpScan, result, now); err != nil {
+				return nil, err
+			}
+
+		case "deployments":
+			if err := s.scanDeployments(ctx, ns, korpScan, result, now); err != nil {
+				return nil, err
+			}
+
+		case "jobs":
+			if err := s.scanJobs(ctx, ns, korpScan, result, now); err != nil {
+				return nil, err
+			}
+
+		case "ingresses":
+			if err := s.scanIngresses(ctx, ns, korpScan, result, now); err != nil {
 				return nil, err
 			}
 		}
@@ -162,6 +177,75 @@ func (s *Scanner) scanServices(ctx context.Context, ns string, korpScan *korpv1a
 			Namespace:    ns,
 			Name:         name,
 			Reason:       "NoEndpoints",
+			DetectedAt:   detectedAt,
+		})
+	}
+
+	return nil
+}
+
+// scanDeployments scans for orphaned Deployments
+func (s *Scanner) scanDeployments(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanDeployments(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedDeployments = len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, korpv1alpha1.Finding{
+			ResourceType: "Deployment",
+			Namespace:    ns,
+			Name:         name,
+			Reason:       "ScaledToZero",
+			DetectedAt:   detectedAt,
+		})
+	}
+
+	return nil
+}
+
+// scanJobs scans for orphaned Jobs
+func (s *Scanner) scanJobs(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanJobs(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedJobs = len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, korpv1alpha1.Finding{
+			ResourceType: "Job",
+			Namespace:    ns,
+			Name:         name,
+			Reason:       "CompletedOld",
+			DetectedAt:   detectedAt,
+		})
+	}
+
+	return nil
+}
+
+// scanIngresses scans for orphaned Ingresses
+func (s *Scanner) scanIngresses(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanIngresses(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedIngresses = len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, korpv1alpha1.Finding{
+			ResourceType: "Ingress",
+			Namespace:    ns,
+			Name:         name,
+			Reason:       "NoBackendService",
 			DetectedAt:   detectedAt,
 		})
 	}

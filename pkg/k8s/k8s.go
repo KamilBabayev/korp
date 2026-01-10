@@ -253,3 +253,107 @@ func isPVCUsedByPod(pod corev1.Pod, pvcName string) bool {
 	}
 	return false
 }
+
+// OrphanDeployments returns names of Deployments with 0 replicas or no running pods
+func OrphanDeployments(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	deployments, err := client.AppsV1().Deployments(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, dep := range deployments.Items {
+		// Check if deployment has 0 replicas
+		if dep.Spec.Replicas != nil && *dep.Spec.Replicas == 0 {
+			names = append(names, dep.Name)
+			continue
+		}
+
+		// Check if deployment has no ready replicas
+		if dep.Status.ReadyReplicas == 0 && dep.Status.Replicas == 0 {
+			names = append(names, dep.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanJobs returns names of completed Jobs older than 7 days
+func OrphanJobs(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	jobs, err := client.BatchV1().Jobs(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, job := range jobs.Items {
+		// Skip if it has owner references (managed by CronJob, etc)
+		if len(job.OwnerReferences) > 0 {
+			continue
+		}
+
+		// Check if job is completed and older than 7 days
+		if job.Status.Succeeded > 0 || job.Status.Failed > 0 {
+			if job.Status.CompletionTime != nil {
+				age := metav1.Now().Sub(job.Status.CompletionTime.Time)
+				if age.Hours() > 168 { // 7 days
+					names = append(names, job.Name)
+				}
+			}
+		}
+	}
+	return names, nil
+}
+
+// OrphanIngresses returns names of Ingresses pointing to non-existent services
+func OrphanIngresses(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	ingresses, err := client.NetworkingV1().Ingresses(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all services in namespace for quick lookup
+	services, err := client.CoreV1().Services(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	serviceMap := make(map[string]bool)
+	for _, svc := range services.Items {
+		serviceMap[svc.Name] = true
+	}
+
+	var names []string
+	for _, ing := range ingresses.Items {
+		hasValidBackend := false
+
+		// Check default backend
+		if ing.Spec.DefaultBackend != nil && ing.Spec.DefaultBackend.Service != nil {
+			if serviceMap[ing.Spec.DefaultBackend.Service.Name] {
+				hasValidBackend = true
+			}
+		}
+
+		// Check all rules
+		for _, rule := range ing.Spec.Rules {
+			if rule.HTTP != nil {
+				for _, path := range rule.HTTP.Paths {
+					if path.Backend.Service != nil {
+						if serviceMap[path.Backend.Service.Name] {
+							hasValidBackend = true
+							break
+						}
+					}
+				}
+			}
+			if hasValidBackend {
+				break
+			}
+		}
+
+		// If no valid backend service exists, consider it orphaned
+		if !hasValidBackend {
+			names = append(names, ing.Name)
+		}
+	}
+	return names, nil
+}

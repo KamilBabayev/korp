@@ -239,6 +239,15 @@ spec:
                   orphanedConfigMaps:
                     description: OrphanedConfigMaps is the count of orphaned ConfigMaps
                     type: integer
+                  orphanedDeployments:
+                    description: OrphanedDeployments is the count of orphaned Deployments
+                    type: integer
+                  orphanedIngresses:
+                    description: OrphanedIngresses is the count of orphaned Ingresses
+                    type: integer
+                  orphanedJobs:
+                    description: OrphanedJobs is the count of orphaned Jobs
+                    type: integer
                   orphanedPVCs:
                     description: OrphanedPVCs is the count of orphaned PersistentVolumeClaims
                     type: integer

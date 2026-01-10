@@ -123,6 +123,9 @@ defaultScan:
     - secrets
     - pvcs
     - services
+    - deployments
+    - jobs
+    - ingresses
 
   # Reporting configuration
   reporting:
