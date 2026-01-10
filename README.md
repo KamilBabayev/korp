@@ -22,15 +22,44 @@ make build-cli
 
 #### Usage
 ```bash
+# Default: scan all namespaces
+./bin/korp
+
 # Scan a specific namespace
 ./bin/korp --namespace default
 
-# Scan all namespaces
+# Scan all namespaces (explicit)
 ./bin/korp --all-namespaces
 
-# JSON output
+# JSON output for all namespaces
+./bin/korp --output json
+
+# JSON output for specific namespace
 ./bin/korp --namespace default --output json
 ```
+
+#### Run as Kubernetes Pod
+
+You can run the CLI directly in your cluster using `kubectl run`:
+
+```bash
+# Default: scan all namespaces
+kubectl run korp-scan --rm -i --restart=Never --image=kamilbabayev/korp-cli:latest -n korp
+
+# Scan a specific namespace
+kubectl run korp-scan --rm -i --restart=Never --image=kamilbabayev/korp-cli:latest -n korp -- --namespace=production
+
+# Scan all namespaces (explicit)
+kubectl run korp-scan --rm -i --restart=Never --image=kamilbabayev/korp-cli:latest -n korp -- --all-namespaces
+
+# JSON output for all namespaces
+kubectl run korp-scan --rm -i --restart=Never --image=kamilbabayev/korp-cli:latest -n korp -- --output=json
+
+# JSON output for specific namespace
+kubectl run korp-scan --rm -i --restart=Never --image=kamilbabayev/korp-cli:latest -n korp -- --namespace=production --output=json
+```
+
+**Note**: When running without arguments, korp scans **all namespaces** by default. Use `--namespace=<name>` to scan a specific namespace.
 
 ### Operator Mode
 

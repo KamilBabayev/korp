@@ -2,10 +2,8 @@ Thank you for installing {{ .Chart.Name }}!
 
 Your release is named {{ .Release.Name }}.
 
-Korp provides TWO ways to find orphaned resources:
-
 ================================================================================
-1. OPERATOR - Continuous Monitoring (Deployed)
+OPERATOR - Continuous Monitoring (Deployed)
 ================================================================================
 
 The korp operator has been deployed to namespace: {{ include "korp.namespace" . }}
@@ -14,7 +12,32 @@ To verify the operator is running:
 
   kubectl get pods -n {{ include "korp.namespace" . }} -l app.kubernetes.io/name={{ include "korp.name" . }}
 
-Create a KorpScan resource to start continuous monitoring:
+{{- if .Values.defaultScan.enabled }}
+
+A default KorpScan has been automatically created:
+  Name: {{ .Values.defaultScan.name }}
+  Target: {{ .Values.defaultScan.targetNamespace }}
+  Interval: {{ .Values.defaultScan.intervalMinutes }} minutes
+
+View scan status:
+
+  kubectl get korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }}
+
+View detailed findings:
+
+  kubectl describe korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }}
+
+View findings as JSON:
+
+  kubectl get korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }} -o jsonpath='{.status.findings}' | jq
+
+View scan summary:
+
+  kubectl get korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }} -o jsonpath='{.status.summary}' | jq
+
+{{- else }}
+
+No default scan created. Create a KorpScan resource to start monitoring:
 
   cat <<EOF | kubectl apply -f -
   apiVersion: korp.io/v1alpha1
@@ -36,64 +59,32 @@ Create a KorpScan resource to start continuous monitoring:
       historyLimit: 5
   EOF
 
-View your KorpScan resources:
+{{- end }}
+
+View all KorpScan resources:
 
   kubectl get korpscans -n {{ include "korp.namespace" . }}
-  kubectl describe korpscan my-scan -n {{ include "korp.namespace" . }}
 
 View operator logs:
 
   kubectl logs -n {{ include "korp.namespace" . }} deployment/{{ include "korp.fullname" . }}
 
 ================================================================================
-2. CLI - Ad-hoc Scans
+CLI - One-Time Scans (Optional)
 ================================================================================
 
-{{- if .Values.cliJob.enabled }}
-CLI CronJob is ENABLED - Scheduled scans will run: {{ .Values.cliJob.schedule }}
+Run ad-hoc scans using the CLI:
 
-View scheduled jobs:
-
-  kubectl get cronjobs -n {{ include "korp.namespace" . }}
-  kubectl get jobs -n {{ include "korp.namespace" . }}
-
-View job logs:
-
-  kubectl logs -n {{ include "korp.namespace" . }} -l app.kubernetes.io/component=cli
-
-{{- else }}
-CLI CronJob is DISABLED. To enable scheduled CLI scans, upgrade with:
-
-  helm upgrade {{ .Release.Name }} charts/korp --set cliJob.enabled=true
-
-{{- end }}
-
-Run one-time scans using the korp CLI in a pod:
-
-# Scan a specific namespace
   kubectl run korp-scan --rm -i --restart=Never \
     --image=kamilbabayev/korp-cli:latest \
     -n {{ include "korp.namespace" . }} \
-    -- korp --namespace default
+    -- --all-namespaces
 
-# Scan all namespaces
   kubectl run korp-scan --rm -i --restart=Never \
     --image=kamilbabayev/korp-cli:latest \
     -n {{ include "korp.namespace" . }} \
-    -- korp --all-namespaces
-
-# Get JSON output
-  kubectl run korp-scan --rm -i --restart=Never \
-    --image=kamilbabayev/korp-cli:latest \
-    -n {{ include "korp.namespace" . }} \
-    -- korp --namespace default --output json
-
-Or download the CLI binary locally:
-
-  # From releases page or build from source
-  go install github.com/kamilbabayev/korp/cmd/cli@latest
-  korp --namespace default
+    -- --namespace default
 
 ================================================================================
 
-For more information, visit: {{ .Chart.Home }}
+For more information, visit: https://github.com/kamilbabayev/korp

@@ -102,6 +102,49 @@ healthProbe:
   enabled: true
   port: 8081
 
+# Default KorpScan configuration
+# When enabled, a default KorpScan resource is automatically created on install
+defaultScan:
+  # Set to true to create a default KorpScan resource
+  enabled: true
+
+  # Name of the default scan
+  name: "cluster-scan"
+
+  # Target namespace to scan (* for all namespaces)
+  targetNamespace: "*"
+
+  # Scan interval in minutes
+  intervalMinutes: 60
+
+  # Resource types to scan
+  resourceTypes:
+    - configmaps
+    - secrets
+    - pvcs
+    - services
+
+  # Reporting configuration
+  reporting:
+    createEvents: true
+    eventSeverity: "Warning"
+    historyLimit: 10
+
+  # Filter configuration
+  # Default filters exclude common system resources that are expected to not have owner references
+  filters:
+    excludeNamePatterns:
+      - "^kube-root-ca\\.crt$"
+      - "^coredns$"
+      - "^extension-apiserver-authentication$"
+      - "^kube-proxy$"
+      - "^kubeadm-config$"
+      - "^kubelet-config$"
+      - "^cluster-info$"
+      - "^local-path-config$"
+      - "^.*-token-.*$"
+      - "^sh\\.helm\\..*$"
+
 # CLI Job configuration (optional - for scheduled ad-hoc scans)
 cliJob:
   # Set to true to deploy a CronJob that runs periodic CLI scans

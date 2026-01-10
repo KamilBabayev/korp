@@ -1,0 +1,34 @@
+{{- if .Values.defaultScan.enabled }}
+apiVersion: korp.io/v1alpha1
+kind: KorpScan
+metadata:
+  name: {{ .Values.defaultScan.name }}
+  namespace: {{ include "korp.namespace" . }}
+  labels:
+    {{- include "korp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: default-scan
+spec:
+  targetNamespace: {{ .Values.defaultScan.targetNamespace | quote }}
+  intervalMinutes: {{ .Values.defaultScan.intervalMinutes }}
+  {{- if .Values.defaultScan.resourceTypes }}
+  resourceTypes:
+    {{- toYaml .Values.defaultScan.resourceTypes | nindent 4 }}
+  {{- end }}
+  {{- if .Values.defaultScan.filters }}
+  filters:
+    {{- if .Values.defaultScan.filters.excludeNamePatterns }}
+    excludeNamePatterns:
+      {{- toYaml .Values.defaultScan.filters.excludeNamePatterns | nindent 6 }}
+    {{- end }}
+    {{- if .Values.defaultScan.filters.excludeLabels }}
+    excludeLabels:
+      {{- toYaml .Values.defaultScan.filters.excludeLabels | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  reporting:
+    createEvents: {{ .Values.defaultScan.reporting.createEvents }}
+    {{- if .Values.defaultScan.reporting.eventSeverity }}
+    eventSeverity: {{ .Values.defaultScan.reporting.eventSeverity | quote }}
+    {{- end }}
+    historyLimit: {{ .Values.defaultScan.reporting.historyLimit }}
+{{- end }}

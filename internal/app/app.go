@@ -53,6 +53,34 @@ func buildClient(kubeconfig string) (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(cfg)
 }
 
+// getPodNamespace returns the namespace the pod is running in when running in-cluster.
+// Returns empty string if not running in a pod.
+func getPodNamespace() string {
+	nsPath := "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	if data, err := os.ReadFile(nsPath); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+	return ""
+}
+
+// countIssueTypes returns the number of resource types with issues
+func countIssueTypes(res scanResult) int {
+	count := 0
+	if res.OrphanConfigMaps > 0 {
+		count++
+	}
+	if res.OrphanSecrets > 0 {
+		count++
+	}
+	if res.OrphanPVCs > 0 {
+		count++
+	}
+	if res.ServicesNoEndpoints > 0 {
+		count++
+	}
+	return count
+}
+
 // Run performs the main application logic. Supports a simple `scan` command.
 func Run(args []string) error {
 	fs := flag.NewFlagSet("korp", flag.ContinueOnError)
@@ -69,6 +97,10 @@ func Run(args []string) error {
 	ns := *namespace
 	if *allNamespaces {
 		ns = metav1.NamespaceAll
+	} else if ns == "" {
+		// Default to scanning all namespaces
+		ns = metav1.NamespaceAll
+		fmt.Fprintf(os.Stderr, "Scanning all namespaces (use --namespace=<name> to scan specific namespace)\n")
 	}
 
 	client, err := buildClient(*kubeconfig)
@@ -141,25 +173,85 @@ func Run(args []string) error {
 		b, _ := json.MarshalIndent(res, "", "  ")
 		fmt.Println(string(b))
 	default:
-		fmt.Printf("Namespace: %s\n", res.Namespace)
-		fmt.Printf("Pods: %d\n", res.Pods)
-		fmt.Printf("ConfigMaps: %d\n", res.ConfigMaps)
-		fmt.Printf("Secrets: %d\n", res.Secrets)
-		fmt.Printf("Services: %d\n", res.Services)
-		fmt.Printf("PVCs: %d\n", res.PVCs)
+		// Print header
+		fmt.Println("================================================================================")
+		fmt.Println("KORP SCAN RESULTS")
+		fmt.Println("================================================================================")
 
+		// Show namespace info
+		nsDisplay := res.Namespace
+		if res.Namespace == "" || res.Namespace == metav1.NamespaceAll {
+			nsDisplay = "All Namespaces"
+		}
+		fmt.Printf("\nTarget: %s\n\n", nsDisplay)
+
+		// Resource summary
+		fmt.Println("RESOURCE SUMMARY:")
+		fmt.Println("--------------------------------------------------------------------------------")
+		fmt.Printf("  Pods:         %d\n", res.Pods)
+		fmt.Printf("  ConfigMaps:   %d\n", res.ConfigMaps)
+		fmt.Printf("  Secrets:      %d\n", res.Secrets)
+		fmt.Printf("  Services:     %d\n", res.Services)
+		fmt.Printf("  PVCs:         %d\n", res.PVCs)
+
+		// Orphaned resources with inline details
+		fmt.Println("\nORPHANED RESOURCES:")
+		fmt.Println("================================================================================")
+
+		hasFindings := false
+
+		// Orphaned ConfigMaps
 		if res.OrphanConfigMaps > 0 {
-			fmt.Printf("Orphan ConfigMaps (%d): %s\n", res.OrphanConfigMaps, strings.Join(res.OrphanConfigMapNames, ", "))
+			hasFindings = true
+			fmt.Printf("\nConfigMaps: %d orphaned\n", res.OrphanConfigMaps)
+			for i, name := range res.OrphanConfigMapNames {
+				fmt.Printf("   %d. %s\n", i+1, name)
+			}
+		} else {
+			fmt.Printf("\nConfigMaps: No orphaned resources\n")
 		}
+
+		// Orphaned Secrets
 		if res.OrphanSecrets > 0 {
-			fmt.Printf("Orphan Secrets (%d): %s\n", res.OrphanSecrets, strings.Join(res.OrphanSecretNames, ", "))
+			hasFindings = true
+			fmt.Printf("\nSecrets: %d orphaned\n", res.OrphanSecrets)
+			for i, name := range res.OrphanSecretNames {
+				fmt.Printf("   %d. %s\n", i+1, name)
+			}
+		} else {
+			fmt.Printf("\nSecrets: No orphaned resources\n")
 		}
+
+		// Orphaned PVCs
 		if res.OrphanPVCs > 0 {
-			fmt.Printf("Orphan PVCs (%d): %s\n", res.OrphanPVCs, strings.Join(res.OrphanPVCNames, ", "))
+			hasFindings = true
+			fmt.Printf("\nPVCs: %d orphaned\n", res.OrphanPVCs)
+			for i, name := range res.OrphanPVCNames {
+				fmt.Printf("   %d. %s\n", i+1, name)
+			}
+		} else {
+			fmt.Printf("\nPVCs: No orphaned resources\n")
 		}
+
+		// Services without endpoints
 		if res.ServicesNoEndpoints > 0 {
-			fmt.Printf("Services with no endpoints (%d): %s\n", res.ServicesNoEndpoints, strings.Join(res.ServicesNoEndpointsNames, ", "))
+			hasFindings = true
+			fmt.Printf("\nServices: %d without endpoints\n", res.ServicesNoEndpoints)
+			for i, name := range res.ServicesNoEndpointsNames {
+				fmt.Printf("   %d. %s\n", i+1, name)
+			}
+		} else {
+			fmt.Printf("\nServices: All have endpoints\n")
 		}
+
+		// Footer
+		fmt.Println("\n================================================================================")
+		if hasFindings {
+			fmt.Printf("Found issues in %d resource type(s)\n", countIssueTypes(res))
+		} else {
+			fmt.Println("No orphaned resources found - cluster is clean!")
+		}
+		fmt.Println("================================================================================")
 	}
 
 	return nil
