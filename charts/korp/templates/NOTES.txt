@@ -8,9 +8,8 @@ OPERATOR - Continuous Monitoring (Deployed)
 
 The korp operator has been deployed to namespace: {{ include "korp.namespace" . }}
 
-To verify the operator is running:
-
-  kubectl get pods -n {{ include "korp.namespace" . }} -l app.kubernetes.io/name={{ include "korp.name" . }}
+# To verify the operator is running:
+kubectl get pods -n {{ include "korp.namespace" . }} -l app.kubernetes.io/name={{ include "korp.name" . }}
 
 {{- if .Values.defaultScan.enabled }}
 
@@ -19,71 +18,50 @@ A default KorpScan has been automatically created:
   Target: {{ .Values.defaultScan.targetNamespace }}
   Interval: {{ .Values.defaultScan.intervalMinutes }} minutes
 
-View scan status:
+# View scan status:
+kubectl get korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }}
 
-  kubectl get korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }}
+# View detailed findings:
+kubectl describe korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }}
 
-View detailed findings:
+# View findings as JSON:
+kubectl get korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }} -o jsonpath='{.status.findings}' | jq
 
-  kubectl describe korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }}
-
-View findings as JSON:
-
-  kubectl get korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }} -o jsonpath='{.status.findings}' | jq
-
-View scan summary:
-
-  kubectl get korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }} -o jsonpath='{.status.summary}' | jq
+# View scan summary:
+kubectl get korpscan {{ .Values.defaultScan.name }} -n {{ include "korp.namespace" . }} -o jsonpath='{.status.summary}' | jq
 
 {{- else }}
 
-No default scan created. Create a KorpScan resource to start monitoring:
+No default scan created.
 
-  cat <<EOF | kubectl apply -f -
-  apiVersion: korp.io/v1alpha1
-  kind: KorpScan
-  metadata:
-    name: my-scan
-    namespace: {{ include "korp.namespace" . }}
-  spec:
-    targetNamespace: "default"
-    intervalMinutes: 30
-    resourceTypes:
-      - configmaps
-      - secrets
-      - pvcs
-      - services
-    reporting:
-      createEvents: true
-      eventSeverity: "Warning"
-      historyLimit: 5
-  EOF
+# Create a KorpScan resource to start monitoring:
+cat <<EOF | kubectl apply -f -
+apiVersion: korp.io/v1alpha1
+kind: KorpScan
+metadata:
+  name: my-scan
+  namespace: {{ include "korp.namespace" . }}
+spec:
+  targetNamespace: "default"
+  intervalMinutes: 30
+  resourceTypes:
+    - configmaps
+    - secrets
+    - pvcs
+    - services
+  reporting:
+    createEvents: true
+    eventSeverity: "Warning"
+    historyLimit: 5
+EOF
 
 {{- end }}
 
-View all KorpScan resources:
+# View all KorpScan resources:
+kubectl get korpscans -n {{ include "korp.namespace" . }}
 
-  kubectl get korpscans -n {{ include "korp.namespace" . }}
-
-View operator logs:
-
-  kubectl logs -n {{ include "korp.namespace" . }} deployment/{{ include "korp.fullname" . }}
-
-================================================================================
-CLI - One-Time Scans (Optional)
-================================================================================
-
-Run ad-hoc scans using the CLI:
-
-  kubectl run korp-scan --rm -i --restart=Never \
-    --image=kamilbabayev/korp-cli:latest \
-    -n {{ include "korp.namespace" . }} \
-    -- --all-namespaces
-
-  kubectl run korp-scan --rm -i --restart=Never \
-    --image=kamilbabayev/korp-cli:latest \
-    -n {{ include "korp.namespace" . }} \
-    -- --namespace default
+# View operator logs:
+kubectl logs -n {{ include "korp.namespace" . }} deployment/{{ include "korp.fullname" . }}
 
 ================================================================================
 
