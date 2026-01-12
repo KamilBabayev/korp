@@ -66,3 +66,8 @@ func (r *EventReporter) CreateEvents(ctx context.Context, korpScan *korpv1alpha1
 
 	r.recorder.Event(korpScan, "Normal", "ScanCompleted", summary)
 }
+
+// CreateEvent creates a single Kubernetes event
+func (r *EventReporter) CreateEvent(obj runtime.Object, eventType, reason, message string) {
+	r.recorder.Event(obj, eventType, reason, message)
+}

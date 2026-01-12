@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	korpv1alpha1 "github.com/kamilbabayev/korp/api/v1alpha1"
+	"github.com/kamilbabayev/korp/pkg/notifier"
 	"github.com/kamilbabayev/korp/pkg/reporter"
 	"github.com/kamilbabayev/korp/pkg/scan"
 )
@@ -139,9 +140,82 @@ func (r *KorpScanReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.Reporter.CreateEvents(ctx, &korpScan, result)
 	}
 
+	// Send webhook notification if configured
+	if korpScan.Spec.Reporting.Webhook != nil {
+		webhookErr := r.sendWebhook(ctx, &korpScan, result, duration)
+
+		// Update webhook status based on result
+		if webhookErr != nil {
+			log.Error(webhookErr, "Failed to send webhook notification")
+
+			// Create warning event
+			r.Reporter.CreateEvent(&korpScan, "Warning", "WebhookFailed",
+				fmt.Sprintf("Failed to send webhook to %s: %v",
+					korpScan.Spec.Reporting.Webhook.URL, webhookErr))
+
+			// Update webhook failure status
+			failureTime := metav1.Now()
+			failureCount := 0
+			if korpScan.Status.WebhookStatus != nil {
+				failureCount = korpScan.Status.WebhookStatus.FailureCount
+			}
+
+			korpScan.Status.WebhookStatus = &korpv1alpha1.WebhookStatus{
+				LastFailure:  &failureTime,
+				FailureCount: failureCount + 1,
+				LastError:    webhookErr.Error(),
+			}
+		} else {
+			// Update webhook success status
+			successTime := metav1.Now()
+			korpScan.Status.WebhookStatus = &korpv1alpha1.WebhookStatus{
+				LastSuccess:  &successTime,
+				FailureCount: 0,
+				LastError:    "",
+			}
+			log.V(1).Info("Webhook notification sent successfully")
+		}
+
+		// Update status with webhook result (non-blocking)
+		if err := r.Status().Update(ctx, &korpScan); err != nil {
+			log.Error(err, "Failed to update webhook status")
+			// Don't fail the reconciliation on webhook status update failure
+		}
+	}
+
 	// Requeue for next scan
 	log.Info("Scan completed successfully", "nextScanIn", interval)
 	return ctrl.Result{RequeueAfter: interval}, nil
+}
+
+// sendWebhook sends a webhook notification with scan results
+func (r *KorpScanReconciler) sendWebhook(
+	ctx context.Context,
+	korpScan *korpv1alpha1.KorpScan,
+	result *scan.ScanResult,
+	duration time.Duration,
+) error {
+	log := log.FromContext(ctx)
+
+	// Create webhook notifier
+	webhookNotifier := notifier.NewWebhookNotifier(*korpScan.Spec.Reporting.Webhook, log)
+
+	// Build payload
+	payload := notifier.WebhookPayload{
+		EventType: "scan.completed",
+		Timestamp: time.Now().Format(time.RFC3339),
+		KorpScan: notifier.ScanMetadata{
+			Name:            korpScan.Name,
+			Namespace:       korpScan.Namespace,
+			TargetNamespace: korpScan.Spec.TargetNamespace,
+		},
+		Summary:      result.Summary,
+		Findings:     result.Details,
+		ScanDuration: duration.String(),
+	}
+
+	// Send webhook
+	return webhookNotifier.Send(ctx, payload)
 }
 
 // updateCondition updates or adds a condition to the KorpScan status

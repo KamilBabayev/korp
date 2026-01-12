@@ -96,6 +96,61 @@ spec:
                     maximum: 50
                     minimum: 1
                     type: integer
+                  webhook:
+                    description: Webhook configuration for sending scan results to
+                      external systems
+                    properties:
+                      headers:
+                        additionalProperties:
+                          type: string
+                        description: Headers are custom HTTP headers to include in
+                          the webhook request
+                        type: object
+                      insecureSkipVerify:
+                        default: false
+                        description: InsecureSkipVerify skips TLS certificate verification
+                          (not recommended)
+                        type: boolean
+                      method:
+                        default: POST
+                        description: 'Method is the HTTP method to use (default: POST)'
+                        enum:
+                        - POST
+                        - PUT
+                        type: string
+                      retryPolicy:
+                        description: RetryPolicy defines retry behavior for failed
+                          webhook calls
+                        properties:
+                          initialDelaySeconds:
+                            default: 1
+                            description: 'InitialDelaySeconds is the initial delay
+                              before first retry in seconds (default: 1)'
+                            maximum: 60
+                            minimum: 1
+                            type: integer
+                          maxRetries:
+                            default: 3
+                            description: 'MaxRetries is the maximum number of retry
+                              attempts (default: 3)'
+                            maximum: 10
+                            minimum: 0
+                            type: integer
+                        type: object
+                      timeoutSeconds:
+                        default: 30
+                        description: 'TimeoutSeconds is the request timeout in seconds
+                          (default: 30)'
+                        maximum: 300
+                        minimum: 1
+                        type: integer
+                      url:
+                        description: URL is the webhook endpoint to send notifications
+                          to
+                        type: string
+                    required:
+                    - url
+                    type: object
                 type: object
               resourceTypes:
                 description: ResourceTypes to scan. Defaults to all if empty.
@@ -267,6 +322,28 @@ spec:
                 - orphanedSecrets
                 - servicesWithoutEndpoints
                 - totalResources
+                type: object
+              webhookStatus:
+                description: WebhookStatus tracks webhook notification status
+                properties:
+                  failureCount:
+                    description: FailureCount is the number of consecutive webhook
+                      failures
+                    type: integer
+                  lastError:
+                    description: LastError contains the error message from the last
+                      failed webhook
+                    type: string
+                  lastFailure:
+                    description: LastFailure is the timestamp of the last failed webhook
+                      delivery
+                    format: date-time
+                    type: string
+                  lastSuccess:
+                    description: LastSuccess is the timestamp of the last successful
+                      webhook delivery
+                    format: date-time
+                    type: string
                 type: object
             type: object
         type: object

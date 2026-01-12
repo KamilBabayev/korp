@@ -68,6 +68,60 @@ type ReportingSpec struct {
 	// +kubebuilder:validation:Maximum=50
 	// +optional
 	HistoryLimit int `json:"historyLimit,omitempty"`
+
+	// Webhook configuration for sending scan results to external systems
+	// +optional
+	Webhook *WebhookConfig `json:"webhook,omitempty"`
+}
+
+// WebhookConfig defines webhook notification settings
+type WebhookConfig struct {
+	// URL is the webhook endpoint to send notifications to
+	// +kubebuilder:validation:Required
+	URL string `json:"url"`
+
+	// Method is the HTTP method to use (default: POST)
+	// +kubebuilder:default="POST"
+	// +kubebuilder:validation:Enum=POST;PUT
+	// +optional
+	Method string `json:"method,omitempty"`
+
+	// Headers are custom HTTP headers to include in the webhook request
+	// +optional
+	Headers map[string]string `json:"headers,omitempty"`
+
+	// TimeoutSeconds is the request timeout in seconds (default: 30)
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=300
+	// +optional
+	TimeoutSeconds int `json:"timeoutSeconds,omitempty"`
+
+	// InsecureSkipVerify skips TLS certificate verification (not recommended)
+	// +kubebuilder:default=false
+	// +optional
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
+
+	// RetryPolicy defines retry behavior for failed webhook calls
+	// +optional
+	RetryPolicy *RetryPolicy `json:"retryPolicy,omitempty"`
+}
+
+// RetryPolicy defines retry behavior for webhook notifications
+type RetryPolicy struct {
+	// MaxRetries is the maximum number of retry attempts (default: 3)
+	// +kubebuilder:default=3
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=10
+	// +optional
+	MaxRetries int `json:"maxRetries,omitempty"`
+
+	// InitialDelaySeconds is the initial delay before first retry in seconds (default: 1)
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=60
+	// +optional
+	InitialDelaySeconds int `json:"initialDelaySeconds,omitempty"`
 }
 
 // KorpScanStatus defines the observed state of KorpScan
@@ -96,6 +150,29 @@ type KorpScanStatus struct {
 	// Conditions represent the latest observations
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// WebhookStatus tracks webhook notification status
+	// +optional
+	WebhookStatus *WebhookStatus `json:"webhookStatus,omitempty"`
+}
+
+// WebhookStatus tracks the status of webhook notifications
+type WebhookStatus struct {
+	// LastSuccess is the timestamp of the last successful webhook delivery
+	// +optional
+	LastSuccess *metav1.Time `json:"lastSuccess,omitempty"`
+
+	// LastFailure is the timestamp of the last failed webhook delivery
+	// +optional
+	LastFailure *metav1.Time `json:"lastFailure,omitempty"`
+
+	// FailureCount is the number of consecutive webhook failures
+	// +optional
+	FailureCount int `json:"failureCount,omitempty"`
+
+	// LastError contains the error message from the last failed webhook
+	// +optional
+	LastError string `json:"lastError,omitempty"`
 }
 
 // ScanSummary provides aggregate counts of orphaned resources

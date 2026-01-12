@@ -1,0 +1,30 @@
+apiVersion: korp.io/v1alpha1
+kind: KorpScan
+metadata:
+  name: webhook-scan
+  namespace: korp
+spec:
+  targetNamespace: "*"
+  intervalMinutes: 60
+  resourceTypes:
+    - configmaps
+    - secrets
+    - pvcs
+    - services
+    - deployments
+    - jobs
+    - ingresses
+  reporting:
+    createEvents: true
+    eventSeverity: "Warning"
+    historyLimit: 5
+    webhook:
+      url: "https://webhook.site/your-unique-id"
+      method: POST
+      timeoutSeconds: 30
+      headers:
+        Content-Type: application/json
+        X-Custom-Header: korp-notification
+      retryPolicy:
+        maxRetries: 3
+        initialDelaySeconds: 1

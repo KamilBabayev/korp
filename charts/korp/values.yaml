@@ -133,6 +133,19 @@ defaultScan:
     eventSeverity: "Warning"
     historyLimit: 10
 
+    # Webhook configuration (optional)
+    # Uncomment to enable webhook notifications
+    # webhook:
+    #   url: "https://webhook.site/your-unique-id"
+    #   method: POST
+    #   timeoutSeconds: 30
+    #   headers:
+    #     Content-Type: application/json
+    #     X-Custom-Header: korp-notification
+    #   retryPolicy:
+    #     maxRetries: 3
+    #     initialDelaySeconds: 1
+
   # Filter configuration
   # Default filters exclude common system resources that are expected to not have owner references
   filters:

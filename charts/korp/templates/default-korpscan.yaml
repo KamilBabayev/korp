@@ -31,4 +31,30 @@ spec:
     eventSeverity: {{ .Values.defaultScan.reporting.eventSeverity | quote }}
     {{- end }}
     historyLimit: {{ .Values.defaultScan.reporting.historyLimit }}
+    {{- if .Values.defaultScan.reporting.webhook }}
+    webhook:
+      url: {{ .Values.defaultScan.reporting.webhook.url | quote }}
+      {{- if .Values.defaultScan.reporting.webhook.method }}
+      method: {{ .Values.defaultScan.reporting.webhook.method }}
+      {{- end }}
+      {{- if .Values.defaultScan.reporting.webhook.timeoutSeconds }}
+      timeoutSeconds: {{ .Values.defaultScan.reporting.webhook.timeoutSeconds }}
+      {{- end }}
+      {{- if .Values.defaultScan.reporting.webhook.insecureSkipVerify }}
+      insecureSkipVerify: {{ .Values.defaultScan.reporting.webhook.insecureSkipVerify }}
+      {{- end }}
+      {{- if .Values.defaultScan.reporting.webhook.headers }}
+      headers:
+        {{- toYaml .Values.defaultScan.reporting.webhook.headers | nindent 8 }}
+      {{- end }}
+      {{- if .Values.defaultScan.reporting.webhook.retryPolicy }}
+      retryPolicy:
+        {{- if .Values.defaultScan.reporting.webhook.retryPolicy.maxRetries }}
+        maxRetries: {{ .Values.defaultScan.reporting.webhook.retryPolicy.maxRetries }}
+        {{- end }}
+        {{- if .Values.defaultScan.reporting.webhook.retryPolicy.initialDelaySeconds }}
+        initialDelaySeconds: {{ .Values.defaultScan.reporting.webhook.retryPolicy.initialDelaySeconds }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
 {{- end }}
