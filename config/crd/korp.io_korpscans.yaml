@@ -55,6 +55,41 @@ spec:
           spec:
             description: KorpScanSpec defines the desired state of KorpScan
             properties:
+              cleanup:
+                description: Cleanup configuration for automatic resource cleanup
+                properties:
+                  dryRun:
+                    default: true
+                    description: |-
+                      DryRun when true, only logs what would be deleted without actually deleting
+                      IMPORTANT: Default is true for safety - must explicitly set to false to delete
+                    type: boolean
+                  enabled:
+                    default: false
+                    description: Enabled determines if automatic cleanup is enabled
+                    type: boolean
+                  minAgeDays:
+                    default: 7
+                    description: |-
+                      MinAgeDays is the minimum age in days before a resource is eligible for cleanup
+                      Resources must be orphaned for at least this many days before deletion
+                    minimum: 0
+                    type: integer
+                  preservationLabels:
+                    description: |-
+                      PreservationLabels are label keys that, when present on a resource, prevent cleanup
+                      Example: "korp.io/preserve", "do-not-delete"
+                    items:
+                      type: string
+                    type: array
+                  resourceTypes:
+                    description: |-
+                      ResourceTypes specifies which resource types to clean up
+                      If empty, all detected orphan types are eligible for cleanup
+                    items:
+                      type: string
+                    type: array
+                type: object
               filters:
                 description: Filters for excluding resources
                 properties:
@@ -167,6 +202,106 @@ spec:
           status:
             description: KorpScanStatus defines the observed state of KorpScan
             properties:
+              cleanupStatus:
+                description: CleanupStatus tracks cleanup operation status
+                properties:
+                  deletedResources:
+                    description: DeletedResources lists resources that were deleted
+                      in the last cleanup
+                    items:
+                      description: DeletedResource represents a resource that was
+                        deleted
+                      properties:
+                        deletedAt:
+                          description: DeletedAt is when the resource was deleted
+                          format: date-time
+                          type: string
+                        name:
+                          description: Name is the name of the deleted resource
+                          type: string
+                        namespace:
+                          description: Namespace is the namespace of the deleted resource
+                          type: string
+                        resourceType:
+                          description: ResourceType is the type of resource (ConfigMap,
+                            Secret, etc.)
+                          type: string
+                      required:
+                      - deletedAt
+                      - name
+                      - namespace
+                      - resourceType
+                      type: object
+                    type: array
+                  failedDeletions:
+                    description: FailedDeletions lists resources that failed to delete
+                    items:
+                      description: FailedDeletion represents a resource that failed
+                        to delete
+                      properties:
+                        error:
+                          description: Error is the error message explaining the failure
+                          type: string
+                        name:
+                          description: Name is the name of the resource
+                          type: string
+                        namespace:
+                          description: Namespace is the namespace of the resource
+                          type: string
+                        resourceType:
+                          description: ResourceType is the type of resource
+                          type: string
+                      required:
+                      - error
+                      - name
+                      - namespace
+                      - resourceType
+                      type: object
+                    type: array
+                  lastCleanupResult:
+                    description: LastCleanupResult indicates the result of the last
+                      cleanup (Success, Failed, DryRun)
+                    type: string
+                  lastCleanupTime:
+                    description: LastCleanupTime is when the last cleanup operation
+                      completed
+                    format: date-time
+                    type: string
+                  summary:
+                    description: Summary of the last cleanup operation
+                    properties:
+                      dryRun:
+                        description: DryRun indicates if this was a dry-run operation
+                        type: boolean
+                      totalDeleted:
+                        description: TotalDeleted is the number of resources actually
+                          deleted
+                        type: integer
+                      totalEligible:
+                        description: TotalEligible is the number of resources eligible
+                          for cleanup
+                        type: integer
+                      totalFailed:
+                        description: TotalFailed is the number of failed deletion
+                          attempts
+                        type: integer
+                      totalSkippedAge:
+                        description: TotalSkippedAge is the count skipped due to age
+                          threshold
+                        type: integer
+                      totalSkippedPreserved:
+                        description: TotalSkippedPreserved is the count skipped due
+                          to preservation labels
+                        type: integer
+                    required:
+                    - dryRun
+                    - totalDeleted
+                    - totalEligible
+                    - totalFailed
+                    - totalSkippedAge
+                    - totalSkippedPreserved
+                    type: object
+                type: object
               conditions:
                 description: Conditions represent the latest observations
                 items:
@@ -294,6 +429,12 @@ spec:
                   orphanedConfigMaps:
                     description: OrphanedConfigMaps is the count of orphaned ConfigMaps
                     type: integer
+                  orphanedCronJobs:
+                    description: OrphanedCronJobs is the count of orphaned CronJobs
+                    type: integer
+                  orphanedDaemonSets:
+                    description: OrphanedDaemonSets is the count of orphaned DaemonSets
+                    type: integer
                   orphanedDeployments:
                     description: OrphanedDeployments is the count of orphaned Deployments
                     type: integer
@@ -306,8 +447,18 @@ spec:
                   orphanedPVCs:
                     description: OrphanedPVCs is the count of orphaned PersistentVolumeClaims
                     type: integer
+                  orphanedReplicaSets:
+                    description: OrphanedReplicaSets is the count of orphaned ReplicaSets
+                    type: integer
                   orphanedSecrets:
                     description: OrphanedSecrets is the count of orphaned Secrets
+                    type: integer
+                  orphanedServiceAccounts:
+                    description: OrphanedServiceAccounts is the count of orphaned
+                      ServiceAccounts
+                    type: integer
+                  orphanedStatefulSets:
+                    description: OrphanedStatefulSets is the count of orphaned StatefulSets
                     type: integer
                   servicesWithoutEndpoints:
                     description: ServicesWithoutEndpoints is the count of Services

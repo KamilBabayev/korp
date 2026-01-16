@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	korpv1alpha1 "github.com/kamilbabayev/korp/api/v1alpha1"
+	"github.com/kamilbabayev/korp/pkg/cleanup"
 	"github.com/kamilbabayev/korp/pkg/notifier"
 	"github.com/kamilbabayev/korp/pkg/reporter"
 	"github.com/kamilbabayev/korp/pkg/scan"
@@ -33,17 +34,27 @@ type KorpScanReconciler struct {
 	Clientset *kubernetes.Clientset
 	Scanner   *scan.Scanner
 	Reporter  *reporter.EventReporter
+	Cleaner   *cleanup.Cleaner
 }
 
 // +kubebuilder:rbac:groups=korp.io,resources=korpscans,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=korp.io,resources=korpscans/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=korp.io,resources=korpscans/finalizers,verbs=update
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list
-// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list
-// +kubebuilder:rbac:groups="",resources=services,verbs=get;list
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;delete
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;delete
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;delete
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;delete
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;delete
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;delete
+// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;delete
+// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get;list;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;delete
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;delete
 
 // Reconcile is the main reconciliation loop
 func (r *KorpScanReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -140,6 +151,50 @@ func (r *KorpScanReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.Reporter.CreateEvents(ctx, &korpScan, result)
 	}
 
+	// Perform cleanup if enabled
+	if korpScan.Spec.Cleanup != nil && korpScan.Spec.Cleanup.Enabled {
+		cleanupResult, cleanupErr := r.performCleanup(ctx, &korpScan, result)
+		if cleanupErr != nil {
+			log.Error(cleanupErr, "Cleanup operation failed")
+			r.Reporter.CreateEvent(&korpScan, "Warning", "CleanupFailed",
+				fmt.Sprintf("Cleanup failed: %v", cleanupErr))
+		} else {
+			// Update cleanup status
+			cleanupTime := metav1.Now()
+			resultType := "Success"
+			if cleanupResult.Summary.DryRun {
+				resultType = "DryRun"
+			}
+			if cleanupResult.Summary.TotalFailed > 0 {
+				resultType = "PartialFailure"
+			}
+
+			korpScan.Status.CleanupStatus = &korpv1alpha1.CleanupStatus{
+				LastCleanupTime:   &cleanupTime,
+				LastCleanupResult: resultType,
+				Summary:           cleanupResult.Summary,
+				DeletedResources:  cleanupResult.DeletedResources,
+				FailedDeletions:   cleanupResult.FailedDeletions,
+			}
+
+			// Create cleanup event
+			eventMsg := fmt.Sprintf("Cleanup completed: %d deleted, %d failed, %d skipped (preserved), %d skipped (age)",
+				cleanupResult.Summary.TotalDeleted,
+				cleanupResult.Summary.TotalFailed,
+				cleanupResult.Summary.TotalSkippedPreserved,
+				cleanupResult.Summary.TotalSkippedAge)
+			if cleanupResult.Summary.DryRun {
+				eventMsg = "[DRY-RUN] " + eventMsg
+			}
+			r.Reporter.CreateEvent(&korpScan, "Normal", "CleanupCompleted", eventMsg)
+
+			// Update status with cleanup results
+			if err := r.Status().Update(ctx, &korpScan); err != nil {
+				log.Error(err, "Failed to update cleanup status")
+			}
+		}
+	}
+
 	// Send webhook notification if configured
 	if korpScan.Spec.Reporting.Webhook != nil {
 		webhookErr := r.sendWebhook(ctx, &korpScan, result, duration)
@@ -230,6 +285,26 @@ func (r *KorpScanReconciler) updateCondition(korpScan *korpv1alpha1.KorpScan,
 		ObservedGeneration: korpScan.Generation,
 		LastTransitionTime: metav1.Now(),
 	})
+}
+
+// performCleanup executes the cleanup operation
+func (r *KorpScanReconciler) performCleanup(
+	ctx context.Context,
+	korpScan *korpv1alpha1.KorpScan,
+	scanResult *scan.ScanResult,
+) (*cleanup.CleanupResult, error) {
+	log := log.FromContext(ctx)
+
+	if r.Cleaner == nil {
+		return nil, fmt.Errorf("cleaner not initialized")
+	}
+
+	log.Info("Starting cleanup operation",
+		"dryRun", korpScan.Spec.Cleanup.IsDryRun(),
+		"minAgeDays", korpScan.Spec.Cleanup.MinAgeDays,
+		"eligibleFindings", len(scanResult.Details))
+
+	return r.Cleaner.Clean(ctx, scanResult.Details, korpScan.Spec.Cleanup)
 }
 
 // SetupWithManager sets up the controller with the Manager

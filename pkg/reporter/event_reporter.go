@@ -54,7 +54,7 @@ func (r *EventReporter) CreateEvents(ctx context.Context, korpScan *korpv1alpha1
 
 	// Create summary event
 	totalOrphans := result.Summary.TotalOrphans()
-	summary := fmt.Sprintf("Scan completed: found %d orphaned resources (%d ConfigMaps, %d Secrets, %d PVCs, %d Deployments, %d Jobs, %d Ingresses, %d Services without endpoints)",
+	summary := fmt.Sprintf("Scan completed: found %d orphaned resources (CM:%d, Sec:%d, PVC:%d, Dep:%d, Job:%d, Ing:%d, Svc:%d, STS:%d, DS:%d, CJ:%d, RS:%d, SA:%d)",
 		totalOrphans,
 		result.Summary.OrphanedConfigMaps,
 		result.Summary.OrphanedSecrets,
@@ -62,7 +62,12 @@ func (r *EventReporter) CreateEvents(ctx context.Context, korpScan *korpv1alpha1
 		result.Summary.OrphanedDeployments,
 		result.Summary.OrphanedJobs,
 		result.Summary.OrphanedIngresses,
-		result.Summary.ServicesWithoutEndpoints)
+		result.Summary.ServicesWithoutEndpoints,
+		result.Summary.OrphanedStatefulSets,
+		result.Summary.OrphanedDaemonSets,
+		result.Summary.OrphanedCronJobs,
+		result.Summary.OrphanedReplicaSets,
+		result.Summary.OrphanedServiceAccounts)
 
 	r.recorder.Event(korpScan, "Normal", "ScanCompleted", summary)
 }

@@ -357,3 +357,130 @@ func OrphanIngresses(ctx context.Context, client *kubernetes.Clientset, ns strin
 	}
 	return names, nil
 }
+
+// OrphanStatefulSets returns names of StatefulSets with 0 replicas or no ready pods
+func OrphanStatefulSets(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	statefulsets, err := client.AppsV1().StatefulSets(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, sts := range statefulsets.Items {
+		// Check if statefulset has 0 replicas
+		if sts.Spec.Replicas != nil && *sts.Spec.Replicas == 0 {
+			names = append(names, sts.Name)
+			continue
+		}
+
+		// Check if statefulset has no ready replicas
+		if sts.Status.ReadyReplicas == 0 && sts.Status.Replicas == 0 {
+			names = append(names, sts.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanDaemonSets returns names of DaemonSets with no scheduled pods
+func OrphanDaemonSets(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	daemonsets, err := client.AppsV1().DaemonSets(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, ds := range daemonsets.Items {
+		// Check if daemonset has no scheduled or ready pods
+		if ds.Status.DesiredNumberScheduled == 0 || ds.Status.NumberReady == 0 {
+			names = append(names, ds.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanCronJobs returns names of CronJobs that are suspended with no recent successful jobs
+func OrphanCronJobs(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	cronjobs, err := client.BatchV1().CronJobs(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, cj := range cronjobs.Items {
+		// Check if cronjob is suspended
+		if cj.Spec.Suspend != nil && *cj.Spec.Suspend {
+			// Check if no recent successful job (no last schedule time or very old)
+			if cj.Status.LastSuccessfulTime == nil {
+				names = append(names, cj.Name)
+				continue
+			}
+
+			// Consider orphaned if last success was more than 30 days ago
+			age := metav1.Now().Sub(cj.Status.LastSuccessfulTime.Time)
+			if age.Hours() > 720 { // 30 days
+				names = append(names, cj.Name)
+			}
+		}
+	}
+	return names, nil
+}
+
+// OrphanReplicaSets returns names of ReplicaSets orphaned from deleted Deployments
+func OrphanReplicaSets(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	replicasets, err := client.AppsV1().ReplicaSets(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, rs := range replicasets.Items {
+		// Skip if it has owner references (managed by Deployment)
+		if len(rs.OwnerReferences) > 0 {
+			continue
+		}
+
+		// Orphaned ReplicaSet - no owner and either 0 replicas or no ready pods
+		if (rs.Spec.Replicas != nil && *rs.Spec.Replicas == 0) ||
+			(rs.Status.ReadyReplicas == 0 && rs.Status.Replicas == 0) {
+			names = append(names, rs.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanServiceAccounts returns names of ServiceAccounts not used by any pod
+func OrphanServiceAccounts(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	serviceaccounts, err := client.CoreV1().ServiceAccounts(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	pods, err := client.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build a set of service accounts used by pods
+	usedServiceAccounts := make(map[string]bool)
+	for _, pod := range pods.Items {
+		saName := pod.Spec.ServiceAccountName
+		if saName == "" {
+			saName = "default"
+		}
+		usedServiceAccounts[saName] = true
+	}
+
+	var names []string
+	for _, sa := range serviceaccounts.Items {
+		// Skip default service account
+		if sa.Name == "default" {
+			continue
+		}
+
+		// Check if used by any pod
+		if !usedServiceAccounts[sa.Name] {
+			names = append(names, sa.Name)
+		}
+	}
+	return names, nil
+}

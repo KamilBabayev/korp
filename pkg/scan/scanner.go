@@ -43,7 +43,8 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 	types := korpScan.Spec.ResourceTypes
 	if len(types) == 0 {
 		// Default to all resource types
-		types = []string{"configmaps", "secrets", "pvcs", "services", "deployments", "jobs", "ingresses"}
+		types = []string{"configmaps", "secrets", "pvcs", "services", "deployments", "jobs", "ingresses",
+			"statefulsets", "daemonsets", "cronjobs", "replicasets", "serviceaccounts"}
 	}
 
 	// Scan each requested resource type
@@ -81,6 +82,31 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 
 		case "ingresses":
 			if err := s.scanIngresses(ctx, ns, korpScan, result, now); err != nil {
+				return nil, err
+			}
+
+		case "statefulsets":
+			if err := s.scanStatefulSets(ctx, ns, korpScan, result, now); err != nil {
+				return nil, err
+			}
+
+		case "daemonsets":
+			if err := s.scanDaemonSets(ctx, ns, korpScan, result, now); err != nil {
+				return nil, err
+			}
+
+		case "cronjobs":
+			if err := s.scanCronJobs(ctx, ns, korpScan, result, now); err != nil {
+				return nil, err
+			}
+
+		case "replicasets":
+			if err := s.scanReplicaSets(ctx, ns, korpScan, result, now); err != nil {
+				return nil, err
+			}
+
+		case "serviceaccounts":
+			if err := s.scanServiceAccounts(ctx, ns, korpScan, result, now); err != nil {
 				return nil, err
 			}
 		}
@@ -246,6 +272,121 @@ func (s *Scanner) scanIngresses(ctx context.Context, ns string, korpScan *korpv1
 			Namespace:    ns,
 			Name:         name,
 			Reason:       "NoBackendService",
+			DetectedAt:   detectedAt,
+		})
+	}
+
+	return nil
+}
+
+// scanStatefulSets scans for orphaned StatefulSets
+func (s *Scanner) scanStatefulSets(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanStatefulSets(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedStatefulSets = len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, korpv1alpha1.Finding{
+			ResourceType: "StatefulSet",
+			Namespace:    ns,
+			Name:         name,
+			Reason:       "ScaledToZeroOrNoReadyPods",
+			DetectedAt:   detectedAt,
+		})
+	}
+
+	return nil
+}
+
+// scanDaemonSets scans for orphaned DaemonSets
+func (s *Scanner) scanDaemonSets(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanDaemonSets(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedDaemonSets = len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, korpv1alpha1.Finding{
+			ResourceType: "DaemonSet",
+			Namespace:    ns,
+			Name:         name,
+			Reason:       "NoScheduledPods",
+			DetectedAt:   detectedAt,
+		})
+	}
+
+	return nil
+}
+
+// scanCronJobs scans for orphaned CronJobs
+func (s *Scanner) scanCronJobs(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanCronJobs(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedCronJobs = len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, korpv1alpha1.Finding{
+			ResourceType: "CronJob",
+			Namespace:    ns,
+			Name:         name,
+			Reason:       "SuspendedNoRecentSuccess",
+			DetectedAt:   detectedAt,
+		})
+	}
+
+	return nil
+}
+
+// scanReplicaSets scans for orphaned ReplicaSets
+func (s *Scanner) scanReplicaSets(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanReplicaSets(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedReplicaSets = len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, korpv1alpha1.Finding{
+			ResourceType: "ReplicaSet",
+			Namespace:    ns,
+			Name:         name,
+			Reason:       "OrphanedNoOwner",
+			DetectedAt:   detectedAt,
+		})
+	}
+
+	return nil
+}
+
+// scanServiceAccounts scans for orphaned ServiceAccounts
+func (s *Scanner) scanServiceAccounts(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanServiceAccounts(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedServiceAccounts = len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, korpv1alpha1.Finding{
+			ResourceType: "ServiceAccount",
+			Namespace:    ns,
+			Name:         name,
+			Reason:       "NotUsedByAnyPod",
 			DetectedAt:   detectedAt,
 		})
 	}

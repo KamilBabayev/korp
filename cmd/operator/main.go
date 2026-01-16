@@ -20,6 +20,7 @@ import (
 
 	korpv1alpha1 "github.com/kamilbabayev/korp/api/v1alpha1"
 	"github.com/kamilbabayev/korp/internal/controller"
+	"github.com/kamilbabayev/korp/pkg/cleanup"
 	"github.com/kamilbabayev/korp/pkg/reporter"
 	"github.com/kamilbabayev/korp/pkg/scan"
 )
@@ -78,6 +79,7 @@ func main() {
 		Clientset: clientset,
 		Scanner:   scan.NewScanner(clientset),
 		Reporter:  reporter.NewEventReporter(clientset, mgr.GetScheme()),
+		Cleaner:   cleanup.NewCleaner(clientset, ctrl.Log.WithName("cleaner")),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KorpScan")
 		os.Exit(1)

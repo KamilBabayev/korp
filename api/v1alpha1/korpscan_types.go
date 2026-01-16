@@ -36,6 +36,11 @@ type KorpScanSpec struct {
 	// +kubebuilder:validation:Optional
 	// +optional
 	Reporting ReportingSpec `json:"reporting,omitempty"`
+
+	// Cleanup configuration for automatic resource cleanup
+	// +kubebuilder:validation:Optional
+	// +optional
+	Cleanup *CleanupSpec `json:"cleanup,omitempty"`
 }
 
 // FilterSpec defines filtering rules for excluding resources
@@ -124,6 +129,45 @@ type RetryPolicy struct {
 	InitialDelaySeconds int `json:"initialDelaySeconds,omitempty"`
 }
 
+// CleanupSpec defines automatic cleanup configuration
+type CleanupSpec struct {
+	// Enabled determines if automatic cleanup is enabled
+	// +kubebuilder:default=false
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// DryRun when true, only logs what would be deleted without actually deleting
+	// IMPORTANT: Default is true for safety - must explicitly set to false to delete
+	// +kubebuilder:default=true
+	// +optional
+	DryRun *bool `json:"dryRun,omitempty"`
+
+	// ResourceTypes specifies which resource types to clean up
+	// If empty, all detected orphan types are eligible for cleanup
+	// +optional
+	ResourceTypes []string `json:"resourceTypes,omitempty"`
+
+	// MinAgeDays is the minimum age in days before a resource is eligible for cleanup
+	// Resources must be orphaned for at least this many days before deletion
+	// +kubebuilder:default=7
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	MinAgeDays int `json:"minAgeDays,omitempty"`
+
+	// PreservationLabels are label keys that, when present on a resource, prevent cleanup
+	// Example: "korp.io/preserve", "do-not-delete"
+	// +optional
+	PreservationLabels []string `json:"preservationLabels,omitempty"`
+}
+
+// IsDryRun returns true if dry-run mode is enabled (default: true for safety)
+func (c *CleanupSpec) IsDryRun() bool {
+	if c.DryRun == nil {
+		return true
+	}
+	return *c.DryRun
+}
+
 // KorpScanStatus defines the observed state of KorpScan
 type KorpScanStatus struct {
 	// LastScanTime is when the last scan completed
@@ -154,6 +198,10 @@ type KorpScanStatus struct {
 	// WebhookStatus tracks webhook notification status
 	// +optional
 	WebhookStatus *WebhookStatus `json:"webhookStatus,omitempty"`
+
+	// CleanupStatus tracks cleanup operation status
+	// +optional
+	CleanupStatus *CleanupStatus `json:"cleanupStatus,omitempty"`
 }
 
 // WebhookStatus tracks the status of webhook notifications
@@ -173,6 +221,80 @@ type WebhookStatus struct {
 	// LastError contains the error message from the last failed webhook
 	// +optional
 	LastError string `json:"lastError,omitempty"`
+}
+
+// CleanupStatus tracks the status of cleanup operations
+type CleanupStatus struct {
+	// LastCleanupTime is when the last cleanup operation completed
+	// +optional
+	LastCleanupTime *metav1.Time `json:"lastCleanupTime,omitempty"`
+
+	// LastCleanupResult indicates the result of the last cleanup (Success, Failed, DryRun)
+	// +optional
+	LastCleanupResult string `json:"lastCleanupResult,omitempty"`
+
+	// Summary of the last cleanup operation
+	// +optional
+	Summary *CleanupSummary `json:"summary,omitempty"`
+
+	// DeletedResources lists resources that were deleted in the last cleanup
+	// +optional
+	DeletedResources []DeletedResource `json:"deletedResources,omitempty"`
+
+	// FailedDeletions lists resources that failed to delete
+	// +optional
+	FailedDeletions []FailedDeletion `json:"failedDeletions,omitempty"`
+}
+
+// CleanupSummary provides aggregate counts for cleanup operations
+type CleanupSummary struct {
+	// TotalEligible is the number of resources eligible for cleanup
+	TotalEligible int `json:"totalEligible"`
+
+	// TotalDeleted is the number of resources actually deleted
+	TotalDeleted int `json:"totalDeleted"`
+
+	// TotalFailed is the number of failed deletion attempts
+	TotalFailed int `json:"totalFailed"`
+
+	// TotalSkippedPreserved is the count skipped due to preservation labels
+	TotalSkippedPreserved int `json:"totalSkippedPreserved"`
+
+	// TotalSkippedAge is the count skipped due to age threshold
+	TotalSkippedAge int `json:"totalSkippedAge"`
+
+	// DryRun indicates if this was a dry-run operation
+	DryRun bool `json:"dryRun"`
+}
+
+// DeletedResource represents a resource that was deleted
+type DeletedResource struct {
+	// ResourceType is the type of resource (ConfigMap, Secret, etc.)
+	ResourceType string `json:"resourceType"`
+
+	// Namespace is the namespace of the deleted resource
+	Namespace string `json:"namespace"`
+
+	// Name is the name of the deleted resource
+	Name string `json:"name"`
+
+	// DeletedAt is when the resource was deleted
+	DeletedAt metav1.Time `json:"deletedAt"`
+}
+
+// FailedDeletion represents a resource that failed to delete
+type FailedDeletion struct {
+	// ResourceType is the type of resource
+	ResourceType string `json:"resourceType"`
+
+	// Namespace is the namespace of the resource
+	Namespace string `json:"namespace"`
+
+	// Name is the name of the resource
+	Name string `json:"name"`
+
+	// Error is the error message explaining the failure
+	Error string `json:"error"`
 }
 
 // ScanSummary provides aggregate counts of orphaned resources
@@ -203,13 +325,36 @@ type ScanSummary struct {
 	// OrphanedIngresses is the count of orphaned Ingresses
 	// +optional
 	OrphanedIngresses int `json:"orphanedIngresses,omitempty"`
+
+	// OrphanedStatefulSets is the count of orphaned StatefulSets
+	// +optional
+	OrphanedStatefulSets int `json:"orphanedStatefulSets,omitempty"`
+
+	// OrphanedDaemonSets is the count of orphaned DaemonSets
+	// +optional
+	OrphanedDaemonSets int `json:"orphanedDaemonSets,omitempty"`
+
+	// OrphanedCronJobs is the count of orphaned CronJobs
+	// +optional
+	OrphanedCronJobs int `json:"orphanedCronJobs,omitempty"`
+
+	// OrphanedReplicaSets is the count of orphaned ReplicaSets
+	// +optional
+	OrphanedReplicaSets int `json:"orphanedReplicaSets,omitempty"`
+
+	// OrphanedServiceAccounts is the count of orphaned ServiceAccounts
+	// +optional
+	OrphanedServiceAccounts int `json:"orphanedServiceAccounts,omitempty"`
 }
 
 // TotalOrphans returns the sum of all orphaned resources
 func (s *ScanSummary) TotalOrphans() int {
 	return s.OrphanedConfigMaps + s.OrphanedSecrets + s.OrphanedPVCs +
 		s.ServicesWithoutEndpoints + s.OrphanedDeployments +
-		s.OrphanedJobs + s.OrphanedIngresses
+		s.OrphanedJobs + s.OrphanedIngresses +
+		s.OrphanedStatefulSets + s.OrphanedDaemonSets +
+		s.OrphanedCronJobs + s.OrphanedReplicaSets +
+		s.OrphanedServiceAccounts
 }
 
 // Finding represents a single orphaned resource
