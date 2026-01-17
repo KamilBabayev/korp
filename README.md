@@ -4,12 +4,20 @@ Korp is both a CLI tool and Kubernetes operator for detecting and reporting orph
 
 ## Features
 
-- **Orphan Detection**: Identifies ConfigMaps, Secrets, PVCs without owner references
-- **Service Validation**: Finds Services without active Endpoints
+- **Orphan Detection**: Identifies orphaned resources across 12 resource types:
+  - ConfigMaps, Secrets, PVCs (without owner references)
+  - Services (without active Endpoints)
+  - Deployments, StatefulSets, DaemonSets (scaled to zero or no ready pods)
+  - Jobs, CronJobs (completed/suspended)
+  - ReplicaSets (orphaned from deleted Deployments)
+  - ServiceAccounts (not used by any pod)
+  - Ingresses (pointing to non-existent services)
+- **Auto-Cleanup**: Safely remove orphaned resources with dry-run mode, age thresholds, and preservation labels
 - **Flexible Filtering**: Exclude resources by name patterns or labels
 - **Dual Mode**: Run as CLI tool or Kubernetes operator
 - **Event Reporting**: Creates Kubernetes events for findings
 - **Historical Tracking**: Maintains scan history and trends
+- **Webhook Notifications**: Send scan results to external systems
 
 ## Quick Start
 
@@ -138,6 +146,14 @@ spec:
     - secrets
     - pvcs
     - services
+    - deployments
+    - statefulsets
+    - daemonsets
+    - jobs
+    - cronjobs
+    - replicasets
+    - serviceaccounts
+    - ingresses
   reporting:
     createEvents: true
     eventSeverity: "Warning"
@@ -180,6 +196,64 @@ spec:
     eventSeverity: "Warning"
 ```
 
+### Scan with Auto-Cleanup (Dry-Run)
+
+```yaml
+apiVersion: korp.io/v1alpha1
+kind: KorpScan
+metadata:
+  name: cleanup-scan
+  namespace: korp
+spec:
+  targetNamespace: "staging"
+  intervalMinutes: 60
+  resourceTypes:
+    - configmaps
+    - secrets
+    - jobs
+  cleanup:
+    enabled: true
+    dryRun: true              # Safe: only logs what would be deleted
+    minAgeDays: 14            # Only cleanup resources orphaned for 14+ days
+    preservationLabels:
+      - "korp.io/preserve"    # Resources with this label are never deleted
+      - "do-not-delete"
+  reporting:
+    createEvents: true
+```
+
+### Scan with Auto-Cleanup (Active)
+
+> **Warning**: Set `dryRun: false` only after verifying dry-run results.
+
+```yaml
+apiVersion: korp.io/v1alpha1
+kind: KorpScan
+metadata:
+  name: active-cleanup-scan
+  namespace: korp
+spec:
+  targetNamespace: "dev"
+  intervalMinutes: 120
+  resourceTypes:
+    - configmaps
+    - secrets
+    - jobs
+    - replicasets
+  cleanup:
+    enabled: true
+    dryRun: false             # Actually deletes resources!
+    minAgeDays: 30            # Conservative: 30 days minimum
+    resourceTypes:            # Only cleanup specific types
+      - configmaps
+      - jobs
+    preservationLabels:
+      - "korp.io/preserve"
+      - "important"
+  reporting:
+    createEvents: true
+```
+
 ## KorpScan CRD Reference
 
 ### Spec Fields
@@ -188,12 +262,34 @@ spec:
 |-------|------|----------|---------|-------------|
 | `targetNamespace` | string | Yes | - | Namespace to scan. Use "*" for all namespaces |
 | `intervalMinutes` | int | No | 60 | Scan interval in minutes |
-| `resourceTypes` | []string | No | all | Resource types to scan: configmaps, secrets, pvcs, services |
+| `resourceTypes` | []string | No | all | Resource types to scan (see below) |
 | `filters.excludeNamePatterns` | []string | No | [] | Regex patterns to exclude resources by name |
 | `filters.excludeLabels` | map[string]string | No | {} | Label selectors to exclude resources |
 | `reporting.createEvents` | bool | No | true | Whether to create Kubernetes events |
 | `reporting.eventSeverity` | string | No | Warning | Event severity: Normal or Warning |
 | `reporting.historyLimit` | int | No | 5 | Number of scan results to retain |
+| `cleanup.enabled` | bool | No | false | Enable automatic cleanup of orphaned resources |
+| `cleanup.dryRun` | bool | No | true | If true, only log what would be deleted (safe mode) |
+| `cleanup.minAgeDays` | int | No | 7 | Minimum days a resource must be orphaned before cleanup |
+| `cleanup.resourceTypes` | []string | No | all | Specific resource types to cleanup |
+| `cleanup.preservationLabels` | []string | No | [] | Labels that prevent cleanup when present |
+
+### Supported Resource Types
+
+| Type | Description | Orphan Detection |
+|------|-------------|------------------|
+| `configmaps` | ConfigMaps | No owner reference and not used by pods |
+| `secrets` | Secrets | No owner reference and not used by pods |
+| `pvcs` | PersistentVolumeClaims | No owner reference and not mounted |
+| `services` | Services | No active endpoints |
+| `deployments` | Deployments | Scaled to zero or no ready pods |
+| `statefulsets` | StatefulSets | Scaled to zero or no ready pods |
+| `daemonsets` | DaemonSets | No scheduled or ready pods |
+| `jobs` | Jobs | Completed and older than 7 days |
+| `cronjobs` | CronJobs | Suspended with no recent success |
+| `replicasets` | ReplicaSets | No owner reference and zero replicas |
+| `serviceaccounts` | ServiceAccounts | Not used by any pod |
+| `ingresses` | Ingresses | Backend service doesn't exist |
 
 ### Status Fields
 
@@ -205,9 +301,20 @@ spec:
 | `summary.orphanedSecrets` | Count of orphaned Secrets |
 | `summary.orphanedPVCs` | Count of orphaned PVCs |
 | `summary.servicesWithoutEndpoints` | Count of Services without Endpoints |
+| `summary.orphanedDeployments` | Count of orphaned Deployments |
+| `summary.orphanedStatefulSets` | Count of orphaned StatefulSets |
+| `summary.orphanedDaemonSets` | Count of orphaned DaemonSets |
+| `summary.orphanedJobs` | Count of orphaned Jobs |
+| `summary.orphanedCronJobs` | Count of orphaned CronJobs |
+| `summary.orphanedReplicaSets` | Count of orphaned ReplicaSets |
+| `summary.orphanedServiceAccounts` | Count of orphaned ServiceAccounts |
+| `summary.orphanedIngresses` | Count of orphaned Ingresses |
 | `findings` | Detailed list of orphaned resources |
 | `history` | Recent scan results with timestamps and counts |
 | `conditions` | Standard Kubernetes conditions |
+| `cleanupStatus.lastCleanupTime` | Timestamp of last cleanup operation |
+| `cleanupStatus.lastCleanupResult` | Result: Success, DryRun, PartialFailure |
+| `cleanupStatus.summary` | Cleanup counts (deleted, failed, skipped) |
 
 ## Viewing Results
 
@@ -274,19 +381,22 @@ make generate
 korp/
 ├── api/v1alpha1/          # CRD types
 ├── cmd/
-│   ├── korp/              # CLI entry point
-│   └── manager/           # Operator binary entry point
+│   ├── cli/              # CLI entry point
+│   └── operator/         # Operator binary entry point
 ├── config/                # Kubernetes manifests
 │   ├── crd/              # CRD definitions
 │   ├── rbac/             # RBAC rules
-│   ├── manager/          # Operator deployment
+│   ├── operator/         # Operator deployment
 │   └── samples/          # Example KorpScans
+├── charts/korp/          # Helm chart
 ├── internal/
 │   ├── app/              # CLI logic
 │   └── controller/       # Operator controller
 └── pkg/
     ├── k8s/              # K8s detection utilities
     ├── scan/             # Scan orchestration
+    ├── cleanup/          # Auto-cleanup logic
+    ├── notifier/         # Webhook notifications
     └── reporter/         # Event reporting
 ```
 
@@ -294,9 +404,10 @@ korp/
 
 The operator requires the following permissions:
 
-- **Read**: ConfigMaps, Secrets, PVCs, Services, Endpoints
+- **Read**: Pods, Endpoints (for usage detection)
+- **Read/Delete**: ConfigMaps, Secrets, PVCs, Services, ServiceAccounts, Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs, Ingresses
 - **Write**: Events
-- **Full**: KorpScan custom resources
+- **Full**: KorpScan custom resources, Leases (leader election)
 
 ## Troubleshooting
 
@@ -328,9 +439,10 @@ MIT License - See LICENSE file for details
 
 ## Roadmap
 
-- [ ] Webhooks for CRD validation
+- [x] ~~Auto-cleanup mode (with safety controls)~~ - **Implemented!**
+- [x] ~~Webhook notifications~~ - **Implemented!**
 - [ ] Prometheus metrics export
-- [ ] Auto-cleanup mode (with safety controls)
 - [ ] Multi-cluster support
-- [ ] Slack/email notifications
+- [ ] Slack/email notifications (native integration)
 - [ ] Custom policy definitions
+- [ ] Webhooks for CRD validation
