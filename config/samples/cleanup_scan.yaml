@@ -1,0 +1,34 @@
+apiVersion: korp.io/v1alpha1
+kind: KorpScan
+metadata:
+  name: cleanup-scan
+  namespace: korp
+spec:
+  targetNamespace: "staging"
+  intervalMinutes: 60
+  resourceTypes:
+    - configmaps
+    - secrets
+    - pvcs
+    - jobs
+    - replicasets
+    - serviceaccounts
+  filters:
+    excludeNamePatterns:
+      - "^kube-.*"
+      - "^default$"
+  cleanup:
+    enabled: true
+    dryRun: true              # Safe mode: only logs what would be deleted
+    minAgeDays: 14            # Only cleanup orphans older than 14 days
+    resourceTypes:            # Only cleanup these specific types
+      - configmaps
+      - secrets
+      - jobs
+    preservationLabels:       # Never delete resources with these labels
+      - "korp.io/preserve"
+      - "do-not-delete"
+  reporting:
+    createEvents: true
+    eventSeverity: "Warning"
+    historyLimit: 5

@@ -12,7 +12,12 @@ spec:
     - pvcs
     - services
     - deployments
+    - statefulsets
+    - daemonsets
     - jobs
+    - cronjobs
+    - replicasets
+    - serviceaccounts
     - ingresses
   reporting:
     createEvents: true

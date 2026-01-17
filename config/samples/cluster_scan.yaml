@@ -9,6 +9,16 @@ spec:
   resourceTypes:
     - configmaps
     - secrets
+    - pvcs
+    - services
+    - deployments
+    - statefulsets
+    - daemonsets
+    - jobs
+    - cronjobs
+    - replicasets
+    - serviceaccounts
+    - ingresses
   reporting:
     createEvents: false
     historyLimit: 10
