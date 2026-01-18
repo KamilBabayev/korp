@@ -24,7 +24,7 @@ spec:
     - jsonPath: .status.phase
       name: Phase
       type: string
-    - jsonPath: .status.summary.orphanedConfigMaps
+    - jsonPath: .status.summary.totalResources
       name: Orphans
       type: integer
     - jsonPath: .metadata.creationTimestamp
@@ -55,6 +55,41 @@ spec:
           spec:
             description: KorpScanSpec defines the desired state of KorpScan
             properties:
+              cleanup:
+                description: Cleanup configuration for automatic resource cleanup
+                properties:
+                  dryRun:
+                    default: true
+                    description: |-
+                      DryRun when true, only logs what would be deleted without actually deleting
+                      IMPORTANT: Default is true for safety - must explicitly set to false to delete
+                    type: boolean
+                  enabled:
+                    default: false
+                    description: Enabled determines if automatic cleanup is enabled
+                    type: boolean
+                  minAgeDays:
+                    default: 7
+                    description: |-
+                      MinAgeDays is the minimum age in days before a resource is eligible for cleanup
+                      Resources must be orphaned for at least this many days before deletion
+                    minimum: 0
+                    type: integer
+                  preservationLabels:
+                    description: |-
+                      PreservationLabels are label keys that, when present on a resource, prevent cleanup
+                      Example: "korp.io/preserve", "do-not-delete"
+                    items:
+                      type: string
+                    type: array
+                  resourceTypes:
+                    description: |-
+                      ResourceTypes specifies which resource types to clean up
+                      If empty, all detected orphan types are eligible for cleanup
+                    items:
+                      type: string
+                    type: array
+                type: object
               filters:
                 description: Filters for excluding resources
                 properties:
@@ -66,6 +101,12 @@ spec:
                   excludeNamePatterns:
                     description: ExcludeNamePatterns are regex patterns to exclude
                       by name
+                    items:
+                      type: string
+                    type: array
+                  excludeNamespaces:
+                    description: ExcludeNamespaces are namespaces to completely exclude
+                      from scanning
                     items:
                       type: string
                     type: array
@@ -96,6 +137,61 @@ spec:
                     maximum: 50
                     minimum: 1
                     type: integer
+                  webhook:
+                    description: Webhook configuration for sending scan results to
+                      external systems
+                    properties:
+                      headers:
+                        additionalProperties:
+                          type: string
+                        description: Headers are custom HTTP headers to include in
+                          the webhook request
+                        type: object
+                      insecureSkipVerify:
+                        default: false
+                        description: InsecureSkipVerify skips TLS certificate verification
+                          (not recommended)
+                        type: boolean
+                      method:
+                        default: POST
+                        description: 'Method is the HTTP method to use (default: POST)'
+                        enum:
+                        - POST
+                        - PUT
+                        type: string
+                      retryPolicy:
+                        description: RetryPolicy defines retry behavior for failed
+                          webhook calls
+                        properties:
+                          initialDelaySeconds:
+                            default: 1
+                            description: 'InitialDelaySeconds is the initial delay
+                              before first retry in seconds (default: 1)'
+                            maximum: 60
+                            minimum: 1
+                            type: integer
+                          maxRetries:
+                            default: 3
+                            description: 'MaxRetries is the maximum number of retry
+                              attempts (default: 3)'
+                            maximum: 10
+                            minimum: 0
+                            type: integer
+                        type: object
+                      timeoutSeconds:
+                        default: 30
+                        description: 'TimeoutSeconds is the request timeout in seconds
+                          (default: 30)'
+                        maximum: 300
+                        minimum: 1
+                        type: integer
+                      url:
+                        description: URL is the webhook endpoint to send notifications
+                          to
+                        type: string
+                    required:
+                    - url
+                    type: object
                 type: object
               resourceTypes:
                 description: ResourceTypes to scan. Defaults to all if empty.
@@ -112,6 +208,106 @@ spec:
           status:
             description: KorpScanStatus defines the observed state of KorpScan
             properties:
+              cleanupStatus:
+                description: CleanupStatus tracks cleanup operation status
+                properties:
+                  deletedResources:
+                    description: DeletedResources lists resources that were deleted
+                      in the last cleanup
+                    items:
+                      description: DeletedResource represents a resource that was
+                        deleted
+                      properties:
+                        deletedAt:
+                          description: DeletedAt is when the resource was deleted
+                          format: date-time
+                          type: string
+                        name:
+                          description: Name is the name of the deleted resource
+                          type: string
+                        namespace:
+                          description: Namespace is the namespace of the deleted resource
+                          type: string
+                        resourceType:
+                          description: ResourceType is the type of resource (ConfigMap,
+                            Secret, etc.)
+                          type: string
+                      required:
+                      - deletedAt
+                      - name
+                      - namespace
+                      - resourceType
+                      type: object
+                    type: array
+                  failedDeletions:
+                    description: FailedDeletions lists resources that failed to delete
+                    items:
+                      description: FailedDeletion represents a resource that failed
+                        to delete
+                      properties:
+                        error:
+                          description: Error is the error message explaining the failure
+                          type: string
+                        name:
+                          description: Name is the name of the resource
+                          type: string
+                        namespace:
+                          description: Namespace is the namespace of the resource
+                          type: string
+                        resourceType:
+                          description: ResourceType is the type of resource
+                          type: string
+                      required:
+                      - error
+                      - name
+                      - namespace
+                      - resourceType
+                      type: object
+                    type: array
+                  lastCleanupResult:
+                    description: LastCleanupResult indicates the result of the last
+                      cleanup (Success, Failed, DryRun)
+                    type: string
+                  lastCleanupTime:
+                    description: LastCleanupTime is when the last cleanup operation
+                      completed
+                    format: date-time
+                    type: string
+                  summary:
+                    description: Summary of the last cleanup operation
+                    properties:
+                      dryRun:
+                        description: DryRun indicates if this was a dry-run operation
+                        type: boolean
+                      totalDeleted:
+                        description: TotalDeleted is the number of resources actually
+                          deleted
+                        type: integer
+                      totalEligible:
+                        description: TotalEligible is the number of resources eligible
+                          for cleanup
+                        type: integer
+                      totalFailed:
+                        description: TotalFailed is the number of failed deletion
+                          attempts
+                        type: integer
+                      totalSkippedAge:
+                        description: TotalSkippedAge is the count skipped due to age
+                          threshold
+                        type: integer
+                      totalSkippedPreserved:
+                        description: TotalSkippedPreserved is the count skipped due
+                          to preservation labels
+                        type: integer
+                    required:
+                    - dryRun
+                    - totalDeleted
+                    - totalEligible
+                    - totalFailed
+                    - totalSkippedAge
+                    - totalSkippedPreserved
+                    type: object
+                type: object
               conditions:
                 description: Conditions represent the latest observations
                 items:
@@ -239,11 +435,36 @@ spec:
                   orphanedConfigMaps:
                     description: OrphanedConfigMaps is the count of orphaned ConfigMaps
                     type: integer
+                  orphanedCronJobs:
+                    description: OrphanedCronJobs is the count of orphaned CronJobs
+                    type: integer
+                  orphanedDaemonSets:
+                    description: OrphanedDaemonSets is the count of orphaned DaemonSets
+                    type: integer
+                  orphanedDeployments:
+                    description: OrphanedDeployments is the count of orphaned Deployments
+                    type: integer
+                  orphanedIngresses:
+                    description: OrphanedIngresses is the count of orphaned Ingresses
+                    type: integer
+                  orphanedJobs:
+                    description: OrphanedJobs is the count of orphaned Jobs
+                    type: integer
                   orphanedPVCs:
                     description: OrphanedPVCs is the count of orphaned PersistentVolumeClaims
                     type: integer
+                  orphanedReplicaSets:
+                    description: OrphanedReplicaSets is the count of orphaned ReplicaSets
+                    type: integer
                   orphanedSecrets:
                     description: OrphanedSecrets is the count of orphaned Secrets
+                    type: integer
+                  orphanedServiceAccounts:
+                    description: OrphanedServiceAccounts is the count of orphaned
+                      ServiceAccounts
+                    type: integer
+                  orphanedStatefulSets:
+                    description: OrphanedStatefulSets is the count of orphaned StatefulSets
                     type: integer
                   servicesWithoutEndpoints:
                     description: ServicesWithoutEndpoints is the count of Services
@@ -258,6 +479,28 @@ spec:
                 - orphanedSecrets
                 - servicesWithoutEndpoints
                 - totalResources
+                type: object
+              webhookStatus:
+                description: WebhookStatus tracks webhook notification status
+                properties:
+                  failureCount:
+                    description: FailureCount is the number of consecutive webhook
+                      failures
+                    type: integer
+                  lastError:
+                    description: LastError contains the error message from the last
+                      failed webhook
+                    type: string
+                  lastFailure:
+                    description: LastFailure is the timestamp of the last failed webhook
+                      delivery
+                    format: date-time
+                    type: string
+                  lastSuccess:
+                    description: LastSuccess is the timestamp of the last successful
+                      webhook delivery
+                    format: date-time
+                    type: string
                 type: object
             type: object
         type: object

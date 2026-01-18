@@ -9,6 +9,7 @@ package reporter
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,27 +53,53 @@ func (r *EventReporter) CreateEvents(ctx context.Context, korpScan *korpv1alpha1
 		r.recorder.Event(korpScan, severity, "OrphanDetected", message)
 	}
 
-	// Create summary event
+	// Create summary event with only non-zero counts
 	totalOrphans := result.Summary.TotalOrphans()
-	summary := fmt.Sprintf("Scan completed: found %d orphaned resources (CM:%d, Sec:%d, PVC:%d, Dep:%d, Job:%d, Ing:%d, Svc:%d, STS:%d, DS:%d, CJ:%d, RS:%d, SA:%d)",
-		totalOrphans,
-		result.Summary.OrphanedConfigMaps,
-		result.Summary.OrphanedSecrets,
-		result.Summary.OrphanedPVCs,
-		result.Summary.OrphanedDeployments,
-		result.Summary.OrphanedJobs,
-		result.Summary.OrphanedIngresses,
-		result.Summary.ServicesWithoutEndpoints,
-		result.Summary.OrphanedStatefulSets,
-		result.Summary.OrphanedDaemonSets,
-		result.Summary.OrphanedCronJobs,
-		result.Summary.OrphanedReplicaSets,
-		result.Summary.OrphanedServiceAccounts)
-
+	summary := buildSummaryMessage(totalOrphans, &result.Summary)
 	r.recorder.Event(korpScan, "Normal", "ScanCompleted", summary)
 }
 
 // CreateEvent creates a single Kubernetes event
 func (r *EventReporter) CreateEvent(obj runtime.Object, eventType, reason, message string) {
 	r.recorder.Event(obj, eventType, reason, message)
+}
+
+// buildSummaryMessage creates a summary message showing only non-zero orphan counts
+func buildSummaryMessage(totalOrphans int, summary *korpv1alpha1.ScanSummary) string {
+	if totalOrphans == 0 {
+		return "Scan completed: no orphaned resources found"
+	}
+
+	// Define resource types and their counts
+	resourceCounts := []struct {
+		name  string
+		count int
+	}{
+		{"ConfigMaps", summary.OrphanedConfigMaps},
+		{"Secrets", summary.OrphanedSecrets},
+		{"PVCs", summary.OrphanedPVCs},
+		{"Services", summary.ServicesWithoutEndpoints},
+		{"Deployments", summary.OrphanedDeployments},
+		{"StatefulSets", summary.OrphanedStatefulSets},
+		{"DaemonSets", summary.OrphanedDaemonSets},
+		{"Jobs", summary.OrphanedJobs},
+		{"CronJobs", summary.OrphanedCronJobs},
+		{"ReplicaSets", summary.OrphanedReplicaSets},
+		{"Ingresses", summary.OrphanedIngresses},
+		{"ServiceAccounts", summary.OrphanedServiceAccounts},
+	}
+
+	// Build list of non-zero counts
+	var parts []string
+	for _, rc := range resourceCounts {
+		if rc.count > 0 {
+			parts = append(parts, fmt.Sprintf("%s: %d", rc.name, rc.count))
+		}
+	}
+
+	if len(parts) == 0 {
+		return fmt.Sprintf("Scan completed: found %d orphaned resources", totalOrphans)
+	}
+
+	return fmt.Sprintf("Scan completed: found %d orphaned resources (%s)", totalOrphans, strings.Join(parts, ", "))
 }

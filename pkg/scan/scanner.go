@@ -33,12 +33,6 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 	result := &ScanResult{}
 	now := metav1.Time{Time: time.Now()}
 
-	// Determine target namespace
-	ns := korpScan.Spec.TargetNamespace
-	if ns == "*" {
-		ns = "" // Empty string means all namespaces in client-go
-	}
-
 	// Determine which resource types to scan
 	types := korpScan.Spec.ResourceTypes
 	if len(types) == 0 {
@@ -47,68 +41,16 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 			"statefulsets", "daemonsets", "cronjobs", "replicasets", "serviceaccounts"}
 	}
 
-	// Scan each requested resource type
-	for _, rt := range types {
-		switch rt {
-		case "configmaps":
-			if err := s.scanConfigMaps(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
+	// Get list of namespaces to scan
+	namespacesToScan, err := s.getNamespacesToScan(ctx, korpScan)
+	if err != nil {
+		return nil, err
+	}
 
-		case "secrets":
-			if err := s.scanSecrets(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "pvcs":
-			if err := s.scanPVCs(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "services":
-			if err := s.scanServices(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "deployments":
-			if err := s.scanDeployments(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "jobs":
-			if err := s.scanJobs(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "ingresses":
-			if err := s.scanIngresses(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "statefulsets":
-			if err := s.scanStatefulSets(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "daemonsets":
-			if err := s.scanDaemonSets(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "cronjobs":
-			if err := s.scanCronJobs(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "replicasets":
-			if err := s.scanReplicaSets(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
-
-		case "serviceaccounts":
-			if err := s.scanServiceAccounts(ctx, ns, korpScan, result, now); err != nil {
-				return nil, err
-			}
+	// Scan each namespace
+	for _, ns := range namespacesToScan {
+		if err := s.scanNamespace(ctx, ns, types, korpScan, result, now); err != nil {
+			return nil, err
 		}
 	}
 
@@ -116,6 +58,108 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 	result.Summary.TotalResources = len(result.Details)
 
 	return result, nil
+}
+
+// getNamespacesToScan returns the list of namespaces to scan based on the KorpScan spec
+func (s *Scanner) getNamespacesToScan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) ([]string, error) {
+	targetNs := korpScan.Spec.TargetNamespace
+
+	// If not scanning all namespaces, return the single target
+	if targetNs != "*" {
+		return []string{targetNs}, nil
+	}
+
+	// Get all namespaces
+	nsList, err := s.client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build exclusion set
+	excludeSet := make(map[string]bool)
+	for _, ns := range korpScan.Spec.Filters.ExcludeNamespaces {
+		excludeSet[ns] = true
+	}
+
+	// Filter namespaces
+	var namespaces []string
+	for _, ns := range nsList.Items {
+		if !excludeSet[ns.Name] {
+			namespaces = append(namespaces, ns.Name)
+		}
+	}
+
+	return namespaces, nil
+}
+
+// scanNamespace scans a single namespace for orphaned resources
+func (s *Scanner) scanNamespace(ctx context.Context, ns string, types []string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, now metav1.Time) error {
+	// Scan each requested resource type
+	for _, rt := range types {
+		switch rt {
+		case "configmaps":
+			if err := s.scanConfigMaps(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "secrets":
+			if err := s.scanSecrets(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "pvcs":
+			if err := s.scanPVCs(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "services":
+			if err := s.scanServices(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "deployments":
+			if err := s.scanDeployments(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "jobs":
+			if err := s.scanJobs(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "ingresses":
+			if err := s.scanIngresses(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "statefulsets":
+			if err := s.scanStatefulSets(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "daemonsets":
+			if err := s.scanDaemonSets(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "cronjobs":
+			if err := s.scanCronJobs(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "replicasets":
+			if err := s.scanReplicaSets(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "serviceaccounts":
+			if err := s.scanServiceAccounts(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // scanConfigMaps scans for orphaned ConfigMaps

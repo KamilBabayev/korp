@@ -52,6 +52,10 @@ type FilterSpec struct {
 	// ExcludeNamePatterns are regex patterns to exclude by name
 	// +optional
 	ExcludeNamePatterns []string `json:"excludeNamePatterns,omitempty"`
+
+	// ExcludeNamespaces are namespaces to completely exclude from scanning
+	// +optional
+	ExcludeNamespaces []string `json:"excludeNamespaces,omitempty"`
 }
 
 // ReportingSpec defines how scan results are reported
@@ -393,7 +397,7 @@ type HistoryEntry struct {
 // +kubebuilder:printcolumn:name="Target",type=string,JSONPath=`.spec.targetNamespace`
 // +kubebuilder:printcolumn:name="Interval",type=integer,JSONPath=`.spec.intervalMinutes`
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Orphans",type=integer,JSONPath=`.status.summary.orphanedConfigMaps`
+// +kubebuilder:printcolumn:name="Orphans",type=integer,JSONPath=`.status.summary.totalResources`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // KorpScan is the Schema for the korpscans API

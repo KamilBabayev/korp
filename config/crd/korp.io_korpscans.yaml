@@ -24,7 +24,7 @@ spec:
     - jsonPath: .status.phase
       name: Phase
       type: string
-    - jsonPath: .status.summary.orphanedConfigMaps
+    - jsonPath: .status.summary.totalResources
       name: Orphans
       type: integer
     - jsonPath: .metadata.creationTimestamp
@@ -101,6 +101,12 @@ spec:
                   excludeNamePatterns:
                     description: ExcludeNamePatterns are regex patterns to exclude
                       by name
+                    items:
+                      type: string
+                    type: array
+                  excludeNamespaces:
+                    description: ExcludeNamespaces are namespaces to completely exclude
+                      from scanning
                     items:
                       type: string
                     type: array

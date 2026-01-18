@@ -14,7 +14,7 @@ image:
   repository: kamilbabayev/korp
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion
-  tag: "latest"
+  tag: ""
 
 imagePullSecrets: []
 
@@ -126,6 +126,11 @@ defaultScan:
     - deployments
     - jobs
     - ingresses
+    - statefulsets
+    - daemonsets
+    - cronjobs
+    - replicasets
+    - serviceaccounts
 
   # Reporting configuration
   reporting:
@@ -149,7 +154,11 @@ defaultScan:
   # Filter configuration
   # Default filters exclude common system resources that are expected to not have owner references
   filters:
+    # Namespaces to completely exclude from scanning (optional)
+    # excludeNamespaces:
+    #   - kube-system
     excludeNamePatterns:
+      # System ConfigMaps
       - "^kube-root-ca\\.crt$"
       - "^coredns$"
       - "^extension-apiserver-authentication$"
@@ -158,8 +167,32 @@ defaultScan:
       - "^kubelet-config$"
       - "^cluster-info$"
       - "^local-path-config$"
+      # Token secrets
       - "^.*-token-.*$"
+      # Helm resources
       - "^sh\\.helm\\..*$"
+      # System ServiceAccounts (kube-controller-manager components)
+      - "^.*-controller$"              # All kube-controller-manager controllers
+      - "^.*-garbage-collector$"       # Garbage collectors
+      - "^bootstrap-signer$"
+      - "^token-cleaner$"
+      - "^persistent-volume-binder$"
+      - "^root-ca-cert-publisher$"
+      - "^horizontal-pod-autoscaler$"
+
+  # Cleanup configuration
+  # IMPORTANT: dryRun defaults to true for safety - must explicitly set to false to delete
+  cleanup:
+    enabled: false
+    dryRun: true              # Safe mode: only logs what would be deleted
+    minAgeDays: 7             # Only cleanup orphans older than this
+    # resourceTypes:          # Only cleanup these specific types (subset of scanned types)
+    #   - configmaps
+    #   - secrets
+    #   - jobs
+    # preservationLabels:     # Never delete resources with these labels
+    #   - "korp.io/preserve"
+    #   - "do-not-delete"
 
 # CLI Job configuration (optional - for scheduled ad-hoc scans)
 cliJob:
@@ -173,7 +206,7 @@ cliJob:
   image:
     repository: kamilbabayev/korp-cli
     pullPolicy: IfNotPresent
-    tag: "latest"
+    tag: ""
 
   # Target namespace to scan (leave empty to use default namespace)
   namespace: ""

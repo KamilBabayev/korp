@@ -16,6 +16,10 @@ spec:
   {{- end }}
   {{- if .Values.defaultScan.filters }}
   filters:
+    {{- if .Values.defaultScan.filters.excludeNamespaces }}
+    excludeNamespaces:
+      {{- toYaml .Values.defaultScan.filters.excludeNamespaces | nindent 6 }}
+    {{- end }}
     {{- if .Values.defaultScan.filters.excludeNamePatterns }}
     excludeNamePatterns:
       {{- toYaml .Values.defaultScan.filters.excludeNamePatterns | nindent 6 }}
@@ -57,4 +61,22 @@ spec:
         {{- end }}
       {{- end }}
     {{- end }}
+  {{- if .Values.defaultScan.cleanup }}
+  cleanup:
+    enabled: {{ .Values.defaultScan.cleanup.enabled | default false }}
+    {{- if .Values.defaultScan.cleanup.dryRun }}
+    dryRun: {{ .Values.defaultScan.cleanup.dryRun }}
+    {{- end }}
+    {{- if .Values.defaultScan.cleanup.minAgeDays }}
+    minAgeDays: {{ .Values.defaultScan.cleanup.minAgeDays }}
+    {{- end }}
+    {{- if .Values.defaultScan.cleanup.resourceTypes }}
+    resourceTypes:
+      {{- toYaml .Values.defaultScan.cleanup.resourceTypes | nindent 6 }}
+    {{- end }}
+    {{- if .Values.defaultScan.cleanup.preservationLabels }}
+    preservationLabels:
+      {{- toYaml .Values.defaultScan.cleanup.preservationLabels | nindent 6 }}
+    {{- end }}
+  {{- end }}
 {{- end }}

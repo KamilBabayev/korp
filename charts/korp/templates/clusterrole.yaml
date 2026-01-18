@@ -34,7 +34,16 @@ rules:
     verbs:
       - update
 
-  # Core resources to scan
+  # Namespaces for listing during cluster-wide scans
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+
+  # Core resources to scan and cleanup
   - apiGroups:
       - ""
     resources:
@@ -44,29 +53,37 @@ rules:
       - services
       - endpoints
       - pods
+      - serviceaccounts
     verbs:
       - get
       - list
+      - delete
 
-  # Apps resources to scan
+  # Apps resources to scan and cleanup
   - apiGroups:
       - apps
     resources:
       - deployments
+      - statefulsets
+      - daemonsets
+      - replicasets
     verbs:
       - get
       - list
+      - delete
 
-  # Batch resources to scan
+  # Batch resources to scan and cleanup
   - apiGroups:
       - batch
     resources:
       - jobs
+      - cronjobs
     verbs:
       - get
       - list
+      - delete
 
-  # Networking resources to scan
+  # Networking resources to scan and cleanup
   - apiGroups:
       - networking.k8s.io
     resources:
@@ -74,6 +91,7 @@ rules:
     verbs:
       - get
       - list
+      - delete
 
   # Events for reporting
   - apiGroups:
