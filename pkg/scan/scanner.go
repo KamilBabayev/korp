@@ -170,7 +170,7 @@ func (s *Scanner) scanConfigMaps(ctx context.Context, ns string, korpScan *korpv
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedConfigMaps = len(filtered)
+	result.Summary.OrphanedConfigMaps += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -193,7 +193,7 @@ func (s *Scanner) scanSecrets(ctx context.Context, ns string, korpScan *korpv1al
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedSecrets = len(filtered)
+	result.Summary.OrphanedSecrets += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -216,7 +216,7 @@ func (s *Scanner) scanPVCs(ctx context.Context, ns string, korpScan *korpv1alpha
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedPVCs = len(filtered)
+	result.Summary.OrphanedPVCs += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -239,7 +239,7 @@ func (s *Scanner) scanServices(ctx context.Context, ns string, korpScan *korpv1a
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.ServicesWithoutEndpoints = len(filtered)
+	result.Summary.ServicesWithoutEndpoints += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -262,7 +262,7 @@ func (s *Scanner) scanDeployments(ctx context.Context, ns string, korpScan *korp
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedDeployments = len(filtered)
+	result.Summary.OrphanedDeployments += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -285,7 +285,7 @@ func (s *Scanner) scanJobs(ctx context.Context, ns string, korpScan *korpv1alpha
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedJobs = len(filtered)
+	result.Summary.OrphanedJobs += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -308,7 +308,7 @@ func (s *Scanner) scanIngresses(ctx context.Context, ns string, korpScan *korpv1
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedIngresses = len(filtered)
+	result.Summary.OrphanedIngresses += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -331,7 +331,7 @@ func (s *Scanner) scanStatefulSets(ctx context.Context, ns string, korpScan *kor
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedStatefulSets = len(filtered)
+	result.Summary.OrphanedStatefulSets += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -354,7 +354,7 @@ func (s *Scanner) scanDaemonSets(ctx context.Context, ns string, korpScan *korpv
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedDaemonSets = len(filtered)
+	result.Summary.OrphanedDaemonSets += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -377,7 +377,7 @@ func (s *Scanner) scanCronJobs(ctx context.Context, ns string, korpScan *korpv1a
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedCronJobs = len(filtered)
+	result.Summary.OrphanedCronJobs += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -400,7 +400,7 @@ func (s *Scanner) scanReplicaSets(ctx context.Context, ns string, korpScan *korp
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedReplicaSets = len(filtered)
+	result.Summary.OrphanedReplicaSets += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
@@ -423,7 +423,7 @@ func (s *Scanner) scanServiceAccounts(ctx context.Context, ns string, korpScan *
 	}
 
 	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
-	result.Summary.OrphanedServiceAccounts = len(filtered)
+	result.Summary.OrphanedServiceAccounts += len(filtered)
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, korpv1alpha1.Finding{
