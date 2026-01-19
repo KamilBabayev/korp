@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,17 +45,14 @@ func (r *EventReporter) CreateEvents(ctx context.Context, korpScan *korpv1alpha1
 		severity = "Warning"
 	}
 
-	// Create events for individual findings with small delay to avoid rate limiting
-	for i, finding := range result.Details {
-		message := fmt.Sprintf("Orphaned %s detected: %s/%s (%s)",
-			finding.ResourceType, finding.Namespace, finding.Name, finding.Reason)
+	// Create events for individual findings using resource-type-specific reasons
+	// This prevents Kubernetes from aggregating events of different types
+	for _, finding := range result.Details {
+		reason := "Orphaned" + finding.ResourceType
+		message := fmt.Sprintf("%s/%s is orphaned (%s)",
+			finding.Namespace, finding.Name, finding.Reason)
 
-		r.recorder.Event(korpScan, severity, "OrphanDetected", message)
-
-		// Add small delay between events to prevent Kubernetes rate limiting
-		if i < len(result.Details)-1 {
-			time.Sleep(100 * time.Millisecond)
-		}
+		r.recorder.Event(korpScan, severity, reason, message)
 	}
 
 	// Create summary event with only non-zero counts
