@@ -93,6 +93,19 @@ rules:
       - list
       - delete
 
+  # RBAC resources to scan and cleanup
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+      - clusterroles
+      - rolebindings
+      - clusterrolebindings
+    verbs:
+      - get
+      - list
+      - delete
+
   # Events for reporting
   - apiGroups:
       - ""

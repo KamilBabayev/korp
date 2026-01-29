@@ -8,6 +8,7 @@ package scan
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -17,6 +18,19 @@ import (
 	korpv1alpha1 "github.com/kamilbabayev/korp/api/v1alpha1"
 	k8sutil "github.com/kamilbabayev/korp/pkg/k8s"
 )
+
+// newFinding creates a Finding with a formatted Description
+func newFinding(resourceType, namespace, name, reason string, detectedAt metav1.Time) korpv1alpha1.Finding {
+	return korpv1alpha1.Finding{
+		Separator:    "---",
+		Description:  fmt.Sprintf("%s %s/%s (%s)", resourceType, namespace, name, reason),
+		ResourceType: resourceType,
+		Name:         name,
+		Namespace:    namespace,
+		Reason:       reason,
+		DetectedAt:   detectedAt,
+	}
+}
 
 // Scanner performs scans of Kubernetes resources for orphans
 type Scanner struct {
@@ -38,7 +52,8 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 	if len(types) == 0 {
 		// Default to all resource types
 		types = []string{"configmaps", "secrets", "pvcs", "services", "deployments", "jobs", "ingresses",
-			"statefulsets", "daemonsets", "cronjobs", "replicasets", "serviceaccounts"}
+			"statefulsets", "daemonsets", "cronjobs", "replicasets", "serviceaccounts",
+			"roles", "clusterroles", "rolebindings", "clusterrolebindings"}
 	}
 
 	// Get list of namespaces to scan
@@ -47,11 +62,16 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 		return nil, err
 	}
 
-	// Scan each namespace
+	// Scan each namespace for namespace-scoped resources
 	for _, ns := range namespacesToScan {
 		if err := s.scanNamespace(ctx, ns, types, korpScan, result, now); err != nil {
 			return nil, err
 		}
+	}
+
+	// Scan cluster-scoped resources (only once, not per namespace)
+	if err := s.scanClusterScopedResources(ctx, types, korpScan, result, now); err != nil {
+		return nil, err
 	}
 
 	// Update total resources count
@@ -156,6 +176,16 @@ func (s *Scanner) scanNamespace(ctx context.Context, ns string, types []string, 
 			if err := s.scanServiceAccounts(ctx, ns, korpScan, result, now); err != nil {
 				return err
 			}
+
+		case "roles":
+			if err := s.scanRoles(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "rolebindings":
+			if err := s.scanRoleBindings(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -173,13 +203,7 @@ func (s *Scanner) scanConfigMaps(ctx context.Context, ns string, korpScan *korpv
 	result.Summary.OrphanedConfigMaps += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "ConfigMap",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "NoOwnerReference",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("ConfigMap", ns, name, "NoOwnerReference", detectedAt))
 	}
 
 	return nil
@@ -196,13 +220,7 @@ func (s *Scanner) scanSecrets(ctx context.Context, ns string, korpScan *korpv1al
 	result.Summary.OrphanedSecrets += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "Secret",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "NoOwnerReference",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("Secret", ns, name, "NoOwnerReference", detectedAt))
 	}
 
 	return nil
@@ -219,13 +237,7 @@ func (s *Scanner) scanPVCs(ctx context.Context, ns string, korpScan *korpv1alpha
 	result.Summary.OrphanedPVCs += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "PersistentVolumeClaim",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "NoOwnerReference",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("PersistentVolumeClaim", ns, name, "NoOwnerReference", detectedAt))
 	}
 
 	return nil
@@ -242,13 +254,7 @@ func (s *Scanner) scanServices(ctx context.Context, ns string, korpScan *korpv1a
 	result.Summary.ServicesWithoutEndpoints += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "Service",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "NoEndpoints",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("Service", ns, name, "NoEndpoints", detectedAt))
 	}
 
 	return nil
@@ -265,13 +271,7 @@ func (s *Scanner) scanDeployments(ctx context.Context, ns string, korpScan *korp
 	result.Summary.OrphanedDeployments += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "Deployment",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "ScaledToZero",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("Deployment", ns, name, "ScaledToZero", detectedAt))
 	}
 
 	return nil
@@ -288,13 +288,7 @@ func (s *Scanner) scanJobs(ctx context.Context, ns string, korpScan *korpv1alpha
 	result.Summary.OrphanedJobs += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "Job",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "CompletedOld",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("Job", ns, name, "CompletedOld", detectedAt))
 	}
 
 	return nil
@@ -311,13 +305,7 @@ func (s *Scanner) scanIngresses(ctx context.Context, ns string, korpScan *korpv1
 	result.Summary.OrphanedIngresses += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "Ingress",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "NoBackendService",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("Ingress", ns, name, "NoBackendService", detectedAt))
 	}
 
 	return nil
@@ -334,13 +322,7 @@ func (s *Scanner) scanStatefulSets(ctx context.Context, ns string, korpScan *kor
 	result.Summary.OrphanedStatefulSets += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "StatefulSet",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "ScaledToZeroOrNoReadyPods",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("StatefulSet", ns, name, "ScaledToZeroOrNoReadyPods", detectedAt))
 	}
 
 	return nil
@@ -357,13 +339,7 @@ func (s *Scanner) scanDaemonSets(ctx context.Context, ns string, korpScan *korpv
 	result.Summary.OrphanedDaemonSets += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "DaemonSet",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "NoScheduledPods",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("DaemonSet", ns, name, "NoScheduledPods", detectedAt))
 	}
 
 	return nil
@@ -380,13 +356,7 @@ func (s *Scanner) scanCronJobs(ctx context.Context, ns string, korpScan *korpv1a
 	result.Summary.OrphanedCronJobs += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "CronJob",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "SuspendedNoRecentSuccess",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("CronJob", ns, name, "SuspendedNoRecentSuccess", detectedAt))
 	}
 
 	return nil
@@ -403,13 +373,7 @@ func (s *Scanner) scanReplicaSets(ctx context.Context, ns string, korpScan *korp
 	result.Summary.OrphanedReplicaSets += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "ReplicaSet",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "OrphanedNoOwner",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("ReplicaSet", ns, name, "OrphanedNoOwner", detectedAt))
 	}
 
 	return nil
@@ -426,13 +390,7 @@ func (s *Scanner) scanServiceAccounts(ctx context.Context, ns string, korpScan *
 	result.Summary.OrphanedServiceAccounts += len(filtered)
 
 	for _, name := range filtered {
-		result.Details = append(result.Details, korpv1alpha1.Finding{
-			ResourceType: "ServiceAccount",
-			Namespace:    ns,
-			Name:         name,
-			Reason:       "NotUsedByAnyPod",
-			DetectedAt:   detectedAt,
-		})
+		result.Details = append(result.Details, newFinding("ServiceAccount", ns, name, "NotUsedByAnyPod", detectedAt))
 	}
 
 	return nil
@@ -467,4 +425,89 @@ func (s *Scanner) applyFilters(names []string, filters korpv1alpha1.FilterSpec) 
 	}
 
 	return filtered
+}
+
+// scanClusterScopedResources scans cluster-scoped resources (ClusterRoles, ClusterRoleBindings)
+func (s *Scanner) scanClusterScopedResources(ctx context.Context, types []string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, now metav1.Time) error {
+	for _, rt := range types {
+		switch rt {
+		case "clusterroles":
+			if err := s.scanClusterRoles(ctx, korpScan, result, now); err != nil {
+				return err
+			}
+		case "clusterrolebindings":
+			if err := s.scanClusterRoleBindings(ctx, korpScan, result, now); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// scanRoles scans for orphaned Roles in a namespace
+func (s *Scanner) scanRoles(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanRoles(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedRoles += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("Role", ns, name, "NotReferencedByBinding", detectedAt))
+	}
+
+	return nil
+}
+
+// scanClusterRoles scans for orphaned ClusterRoles
+func (s *Scanner) scanClusterRoles(ctx context.Context, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanClusterRoles(ctx, s.client)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedClusterRoles += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("ClusterRole", "", name, "NotReferencedByBinding", detectedAt))
+	}
+
+	return nil
+}
+
+// scanRoleBindings scans for orphaned RoleBindings in a namespace
+func (s *Scanner) scanRoleBindings(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanRoleBindings(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedRoleBindings += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("RoleBinding", ns, name, "ReferencesNonExistentRoleOrSubject", detectedAt))
+	}
+
+	return nil
+}
+
+// scanClusterRoleBindings scans for orphaned ClusterRoleBindings
+func (s *Scanner) scanClusterRoleBindings(ctx context.Context, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanClusterRoleBindings(ctx, s.client)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedClusterRoleBindings += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("ClusterRoleBinding", "", name, "ReferencesNonExistentRoleOrSubject", detectedAt))
+	}
+
+	return nil
 }

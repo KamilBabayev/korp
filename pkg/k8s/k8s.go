@@ -484,3 +484,228 @@ func OrphanServiceAccounts(ctx context.Context, client *kubernetes.Clientset, ns
 	}
 	return names, nil
 }
+
+// OrphanRoles returns names of Roles not referenced by any RoleBinding
+func OrphanRoles(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	roles, err := client.RbacV1().Roles(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	roleBindings, err := client.RbacV1().RoleBindings(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build set of roles referenced by bindings
+	referencedRoles := make(map[string]bool)
+	for _, rb := range roleBindings.Items {
+		if rb.RoleRef.Kind == "Role" {
+			referencedRoles[rb.RoleRef.Name] = true
+		}
+	}
+
+	var names []string
+	for _, role := range roles.Items {
+		// Skip system roles (prefixed with system:)
+		if len(role.Name) > 7 && role.Name[:7] == "system:" {
+			continue
+		}
+
+		if !referencedRoles[role.Name] {
+			names = append(names, role.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanClusterRoles returns names of ClusterRoles not referenced by any ClusterRoleBinding or RoleBinding
+func OrphanClusterRoles(ctx context.Context, client *kubernetes.Clientset) ([]string, error) {
+	clusterRoles, err := client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	clusterRoleBindings, err := client.RbacV1().ClusterRoleBindings().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Also check RoleBindings that can reference ClusterRoles
+	roleBindings, err := client.RbacV1().RoleBindings("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build set of cluster roles referenced by bindings
+	referencedClusterRoles := make(map[string]bool)
+	for _, crb := range clusterRoleBindings.Items {
+		if crb.RoleRef.Kind == "ClusterRole" {
+			referencedClusterRoles[crb.RoleRef.Name] = true
+		}
+	}
+	// RoleBindings can also reference ClusterRoles
+	for _, rb := range roleBindings.Items {
+		if rb.RoleRef.Kind == "ClusterRole" {
+			referencedClusterRoles[rb.RoleRef.Name] = true
+		}
+	}
+
+	var names []string
+	for _, cr := range clusterRoles.Items {
+		// Skip system cluster roles
+		if len(cr.Name) > 7 && cr.Name[:7] == "system:" {
+			continue
+		}
+		// Skip aggregation roles (they aggregate other roles)
+		if cr.AggregationRule != nil {
+			continue
+		}
+		// Skip common built-in roles
+		if isBuiltInClusterRole(cr.Name) {
+			continue
+		}
+
+		if !referencedClusterRoles[cr.Name] {
+			names = append(names, cr.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanRoleBindings returns names of RoleBindings that reference non-existent Roles or ServiceAccounts
+func OrphanRoleBindings(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	roleBindings, err := client.RbacV1().RoleBindings(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	roles, err := client.RbacV1().Roles(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	clusterRoles, err := client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build set of existing roles
+	existingRoles := make(map[string]bool)
+	for _, role := range roles.Items {
+		existingRoles[role.Name] = true
+	}
+
+	existingClusterRoles := make(map[string]bool)
+	for _, cr := range clusterRoles.Items {
+		existingClusterRoles[cr.Name] = true
+	}
+
+	var names []string
+	for _, rb := range roleBindings.Items {
+		isOrphan := false
+
+		// Check if referenced role exists
+		if rb.RoleRef.Kind == "Role" {
+			if !existingRoles[rb.RoleRef.Name] {
+				isOrphan = true
+			}
+		} else if rb.RoleRef.Kind == "ClusterRole" {
+			if !existingClusterRoles[rb.RoleRef.Name] {
+				isOrphan = true
+			}
+		}
+
+		// Check if any subject references non-existent ServiceAccount in same namespace
+		if !isOrphan {
+			for _, subject := range rb.Subjects {
+				if subject.Kind == "ServiceAccount" {
+					subjectNs := subject.Namespace
+					if subjectNs == "" {
+						subjectNs = ns
+					}
+					if subjectNs == ns {
+						_, err := client.CoreV1().ServiceAccounts(subjectNs).Get(ctx, subject.Name, metav1.GetOptions{})
+						if err != nil {
+							isOrphan = true
+							break
+						}
+					}
+				}
+			}
+		}
+
+		if isOrphan {
+			names = append(names, rb.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanClusterRoleBindings returns names of ClusterRoleBindings that reference non-existent ClusterRoles or ServiceAccounts
+func OrphanClusterRoleBindings(ctx context.Context, client *kubernetes.Clientset) ([]string, error) {
+	clusterRoleBindings, err := client.RbacV1().ClusterRoleBindings().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	clusterRoles, err := client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build set of existing cluster roles
+	existingClusterRoles := make(map[string]bool)
+	for _, cr := range clusterRoles.Items {
+		existingClusterRoles[cr.Name] = true
+	}
+
+	var names []string
+	for _, crb := range clusterRoleBindings.Items {
+		// Skip system cluster role bindings
+		if len(crb.Name) > 7 && crb.Name[:7] == "system:" {
+			continue
+		}
+
+		isOrphan := false
+
+		// Check if referenced cluster role exists
+		if !existingClusterRoles[crb.RoleRef.Name] {
+			isOrphan = true
+		}
+
+		// Check if any subject references non-existent ServiceAccount
+		if !isOrphan {
+			for _, subject := range crb.Subjects {
+				if subject.Kind == "ServiceAccount" && subject.Namespace != "" {
+					_, err := client.CoreV1().ServiceAccounts(subject.Namespace).Get(ctx, subject.Name, metav1.GetOptions{})
+					if err != nil {
+						isOrphan = true
+						break
+					}
+				}
+			}
+		}
+
+		if isOrphan {
+			names = append(names, crb.Name)
+		}
+	}
+	return names, nil
+}
+
+// isBuiltInClusterRole checks if a cluster role is a built-in Kubernetes role
+func isBuiltInClusterRole(name string) bool {
+	builtInRoles := map[string]bool{
+		"admin":                            true,
+		"cluster-admin":                    true,
+		"edit":                             true,
+		"view":                             true,
+		"self-provisioner":                 true,
+		"basic-user":                       true,
+		"cluster-status":                   true,
+		"node-problem-detector":            true,
+		"gce:podsecuritypolicy:privileged": true,
+	}
+	return builtInRoles[name]
+}

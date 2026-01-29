@@ -4,7 +4,7 @@ Korp is both a CLI tool and Kubernetes operator for detecting and reporting orph
 
 ## Features
 
-- **Orphan Detection**: Identifies orphaned resources across 12 resource types:
+- **Orphan Detection**: Identifies orphaned resources across 16 resource types:
   - ConfigMaps, Secrets, PVCs (without owner references)
   - Services (without active Endpoints)
   - Deployments, StatefulSets, DaemonSets (scaled to zero or no ready pods)
@@ -12,6 +12,8 @@ Korp is both a CLI tool and Kubernetes operator for detecting and reporting orph
   - ReplicaSets (orphaned from deleted Deployments)
   - ServiceAccounts (not used by any pod)
   - Ingresses (pointing to non-existent services)
+  - Roles, ClusterRoles (not referenced by any binding)
+  - RoleBindings, ClusterRoleBindings (referencing non-existent roles/subjects)
 - **Auto-Cleanup**: Safely remove orphaned resources with dry-run mode, age thresholds, and preservation labels
 - **Flexible Filtering**: Exclude resources by name patterns or labels
 - **Dual Mode**: Run as CLI tool or Kubernetes operator
@@ -290,6 +292,10 @@ spec:
 | `replicasets` | ReplicaSets | No owner reference and zero replicas |
 | `serviceaccounts` | ServiceAccounts | Not used by any pod |
 | `ingresses` | Ingresses | Backend service doesn't exist |
+| `roles` | Roles | Not referenced by any RoleBinding |
+| `clusterroles` | ClusterRoles | Not referenced by any binding |
+| `rolebindings` | RoleBindings | References non-existent Role or ServiceAccount |
+| `clusterrolebindings` | ClusterRoleBindings | References non-existent ClusterRole or ServiceAccount |
 
 ### Status Fields
 
@@ -309,6 +315,11 @@ spec:
 | `summary.orphanedReplicaSets` | Count of orphaned ReplicaSets |
 | `summary.orphanedServiceAccounts` | Count of orphaned ServiceAccounts |
 | `summary.orphanedIngresses` | Count of orphaned Ingresses |
+| `summary.orphanedRoles` | Count of orphaned Roles |
+| `summary.orphanedClusterRoles` | Count of orphaned ClusterRoles |
+| `summary.orphanedRoleBindings` | Count of orphaned RoleBindings |
+| `summary.orphanedClusterRoleBindings` | Count of orphaned ClusterRoleBindings |
+| `summary.orphanCount` | Total count of all orphaned resources |
 | `findings` | Detailed list of orphaned resources |
 | `history` | Recent scan results with timestamps and counts |
 | `conditions` | Standard Kubernetes conditions |
@@ -329,8 +340,12 @@ kubectl describe korpscan default-namespace-scan -n korp
 kubectl get korpscan default-namespace-scan -n korp -o jsonpath='{.status.findings}' | jq
 ```
 
-### View Events
+### View Events on Orphaned Resources
 ```bash
+# View all orphan events cluster-wide (recommended)
+kubectl get events -A --field-selector reason=Orphaned
+
+# View events related to KorpScan resource
 kubectl get events -n korp --field-selector involvedObject.kind=KorpScan
 ```
 

@@ -159,6 +159,10 @@ func (c *Cleaner) isResourceTypeAllowed(resourceType string, allowedTypes map[st
 		"ReplicaSet":            "replicasets",
 		"ServiceAccount":        "serviceaccounts",
 		"Ingress":               "ingresses",
+		"Role":                  "roles",
+		"ClusterRole":           "clusterroles",
+		"RoleBinding":           "rolebindings",
+		"ClusterRoleBinding":    "clusterrolebindings",
 	}
 
 	specType, ok := typeMapping[resourceType]
@@ -264,6 +268,30 @@ func (c *Cleaner) getResourceLabels(ctx context.Context, finding korpv1alpha1.Fi
 			return nil, err
 		}
 		return obj.Labels, nil
+	case "Role":
+		obj, err := c.client.RbacV1().Roles(finding.Namespace).Get(ctx, finding.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return obj.Labels, nil
+	case "ClusterRole":
+		obj, err := c.client.RbacV1().ClusterRoles().Get(ctx, finding.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return obj.Labels, nil
+	case "RoleBinding":
+		obj, err := c.client.RbacV1().RoleBindings(finding.Namespace).Get(ctx, finding.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return obj.Labels, nil
+	case "ClusterRoleBinding":
+		obj, err := c.client.RbacV1().ClusterRoleBindings().Get(ctx, finding.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return obj.Labels, nil
 	default:
 		return nil, fmt.Errorf("unsupported resource type: %s", finding.ResourceType)
 	}
@@ -298,6 +326,14 @@ func (c *Cleaner) deleteResource(ctx context.Context, finding korpv1alpha1.Findi
 		return c.client.CoreV1().ServiceAccounts(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
 	case "Ingress":
 		return c.client.NetworkingV1().Ingresses(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+	case "Role":
+		return c.client.RbacV1().Roles(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+	case "ClusterRole":
+		return c.client.RbacV1().ClusterRoles().Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+	case "RoleBinding":
+		return c.client.RbacV1().RoleBindings(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+	case "ClusterRoleBinding":
+		return c.client.RbacV1().ClusterRoleBindings().Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
 	default:
 		return fmt.Errorf("unsupported resource type for deletion: %s", finding.ResourceType)
 	}

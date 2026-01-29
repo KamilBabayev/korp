@@ -303,6 +303,10 @@ type FailedDeletion struct {
 
 // ScanSummary provides aggregate counts of orphaned resources
 type ScanSummary struct {
+	// OrphanCount is the total number of orphaned resources found
+	// +optional
+	OrphanCount int `json:"orphanCount,omitempty"`
+
 	// TotalResources is the total number of resources scanned
 	TotalResources int `json:"totalResources"`
 
@@ -349,6 +353,22 @@ type ScanSummary struct {
 	// OrphanedServiceAccounts is the count of orphaned ServiceAccounts
 	// +optional
 	OrphanedServiceAccounts int `json:"orphanedServiceAccounts,omitempty"`
+
+	// OrphanedRoles is the count of orphaned Roles (not referenced by any RoleBinding)
+	// +optional
+	OrphanedRoles int `json:"orphanedRoles,omitempty"`
+
+	// OrphanedClusterRoles is the count of orphaned ClusterRoles (not referenced by any binding)
+	// +optional
+	OrphanedClusterRoles int `json:"orphanedClusterRoles,omitempty"`
+
+	// OrphanedRoleBindings is the count of orphaned RoleBindings (referencing non-existent roles/subjects)
+	// +optional
+	OrphanedRoleBindings int `json:"orphanedRoleBindings,omitempty"`
+
+	// OrphanedClusterRoleBindings is the count of orphaned ClusterRoleBindings
+	// +optional
+	OrphanedClusterRoleBindings int `json:"orphanedClusterRoleBindings,omitempty"`
 }
 
 // TotalOrphans returns the sum of all orphaned resources
@@ -358,24 +378,34 @@ func (s *ScanSummary) TotalOrphans() int {
 		s.OrphanedJobs + s.OrphanedIngresses +
 		s.OrphanedStatefulSets + s.OrphanedDaemonSets +
 		s.OrphanedCronJobs + s.OrphanedReplicaSets +
-		s.OrphanedServiceAccounts
+		s.OrphanedServiceAccounts + s.OrphanedRoles +
+		s.OrphanedClusterRoles + s.OrphanedRoleBindings +
+		s.OrphanedClusterRoleBindings
 }
 
 // Finding represents a single orphaned resource
 type Finding struct {
-	// ResourceType is the type of resource (ConfigMap, Secret, etc.)
+	// Separator is a visual divider between findings
+	// +optional
+	Separator string `json:"---,omitempty"`
+
+	// Description is a one-line summary: "ConfigMap korp/name (Reason)"
+	// +optional
+	Description string `json:"description,omitempty"`
+
+	// ResourceType is the kind of resource (ConfigMap, Secret, Service, etc.)
 	ResourceType string `json:"resourceType"`
 
-	// Namespace is the namespace of the resource
-	Namespace string `json:"namespace"`
-
-	// Name is the name of the resource
+	// Name is the name of the orphaned resource
 	Name string `json:"name"`
 
-	// Reason explains why the resource is considered orphaned
+	// Namespace where the resource is located
+	Namespace string `json:"namespace"`
+
+	// Reason explains why this resource is considered orphaned
 	Reason string `json:"reason"`
 
-	// DetectedAt is when this orphan was detected
+	// DetectedAt timestamp when this orphan was first detected
 	DetectedAt metav1.Time `json:"detectedAt"`
 }
 
@@ -397,7 +427,10 @@ type HistoryEntry struct {
 // +kubebuilder:printcolumn:name="Target",type=string,JSONPath=`.spec.targetNamespace`
 // +kubebuilder:printcolumn:name="Interval",type=integer,JSONPath=`.spec.intervalMinutes`
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Orphans",type=integer,JSONPath=`.status.summary.totalResources`
+// +kubebuilder:printcolumn:name="Orphans",type=integer,JSONPath=`.status.summary.orphanCount`
+// +kubebuilder:printcolumn:name="Services",type=integer,JSONPath=`.status.summary.servicesWithoutEndpoints`,priority=1
+// +kubebuilder:printcolumn:name="Deploys",type=integer,JSONPath=`.status.summary.orphanedDeployments`,priority=1
+// +kubebuilder:printcolumn:name="LastScan",type=date,JSONPath=`.status.lastScanTime`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // KorpScan is the Schema for the korpscans API

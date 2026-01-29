@@ -55,6 +55,10 @@ type KorpScanReconciler struct {
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;delete
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;delete
 
 // Reconcile is the main reconciliation loop
 func (r *KorpScanReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -117,6 +121,7 @@ func (r *KorpScanReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	korpScan.Status.LastScanTime = &now
 	korpScan.Status.Phase = "Completed"
 	korpScan.Status.Summary = result.Summary
+	korpScan.Status.Summary.OrphanCount = result.Summary.TotalOrphans()
 	korpScan.Status.Findings = result.Details
 
 	// Add to history

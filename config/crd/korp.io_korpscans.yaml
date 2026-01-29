@@ -24,9 +24,20 @@ spec:
     - jsonPath: .status.phase
       name: Phase
       type: string
-    - jsonPath: .status.summary.totalResources
+    - jsonPath: .status.summary.orphanCount
       name: Orphans
       type: integer
+    - jsonPath: .status.summary.servicesWithoutEndpoints
+      name: Services
+      priority: 1
+      type: integer
+    - jsonPath: .status.summary.orphanedDeployments
+      name: Deploys
+      priority: 1
+      type: integer
+    - jsonPath: .status.lastScanTime
+      name: LastScan
+      type: date
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -370,23 +381,31 @@ spec:
                 items:
                   description: Finding represents a single orphaned resource
                   properties:
+                    '---':
+                      description: Separator is a visual divider between findings
+                      type: string
+                    description:
+                      description: 'Description is a one-line summary: "ConfigMap
+                        korp/name (Reason)"'
+                      type: string
                     detectedAt:
-                      description: DetectedAt is when this orphan was detected
+                      description: DetectedAt timestamp when this orphan was first
+                        detected
                       format: date-time
                       type: string
                     name:
-                      description: Name is the name of the resource
+                      description: Name is the name of the orphaned resource
                       type: string
                     namespace:
-                      description: Namespace is the namespace of the resource
+                      description: Namespace where the resource is located
                       type: string
                     reason:
-                      description: Reason explains why the resource is considered
+                      description: Reason explains why this resource is considered
                         orphaned
                       type: string
                     resourceType:
-                      description: ResourceType is the type of resource (ConfigMap,
-                        Secret, etc.)
+                      description: ResourceType is the kind of resource (ConfigMap,
+                        Secret, Service, etc.)
                       type: string
                   required:
                   - detectedAt
@@ -432,6 +451,18 @@ spec:
               summary:
                 description: Summary of findings
                 properties:
+                  orphanCount:
+                    description: OrphanCount is the total number of orphaned resources
+                      found
+                    type: integer
+                  orphanedClusterRoleBindings:
+                    description: OrphanedClusterRoleBindings is the count of orphaned
+                      ClusterRoleBindings
+                    type: integer
+                  orphanedClusterRoles:
+                    description: OrphanedClusterRoles is the count of orphaned ClusterRoles
+                      (not referenced by any binding)
+                    type: integer
                   orphanedConfigMaps:
                     description: OrphanedConfigMaps is the count of orphaned ConfigMaps
                     type: integer
@@ -455,6 +486,14 @@ spec:
                     type: integer
                   orphanedReplicaSets:
                     description: OrphanedReplicaSets is the count of orphaned ReplicaSets
+                    type: integer
+                  orphanedRoleBindings:
+                    description: OrphanedRoleBindings is the count of orphaned RoleBindings
+                      (referencing non-existent roles/subjects)
+                    type: integer
+                  orphanedRoles:
+                    description: OrphanedRoles is the count of orphaned Roles (not
+                      referenced by any RoleBinding)
                     type: integer
                   orphanedSecrets:
                     description: OrphanedSecrets is the count of orphaned Secrets
