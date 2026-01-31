@@ -131,6 +131,10 @@ defaultScan:
     - cronjobs
     - replicasets
     - serviceaccounts
+    - roles
+    - clusterroles
+    - rolebindings
+    - clusterrolebindings
 
   # Reporting configuration
   reporting:

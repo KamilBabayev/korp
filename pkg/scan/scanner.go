@@ -53,7 +53,8 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 		// Default to all resource types
 		types = []string{"configmaps", "secrets", "pvcs", "services", "deployments", "jobs", "ingresses",
 			"statefulsets", "daemonsets", "cronjobs", "replicasets", "serviceaccounts",
-			"roles", "clusterroles", "rolebindings", "clusterrolebindings"}
+			"roles", "clusterroles", "rolebindings", "clusterrolebindings",
+			"networkpolicies", "poddisruptionbudgets", "hpas"}
 	}
 
 	// Get list of namespaces to scan
@@ -184,6 +185,21 @@ func (s *Scanner) scanNamespace(ctx context.Context, ns string, types []string, 
 
 		case "rolebindings":
 			if err := s.scanRoleBindings(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "networkpolicies":
+			if err := s.scanNetworkPolicies(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "poddisruptionbudgets":
+			if err := s.scanPodDisruptionBudgets(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "hpas":
+			if err := s.scanHPAs(ctx, ns, korpScan, result, now); err != nil {
 				return err
 			}
 		}
@@ -507,6 +523,57 @@ func (s *Scanner) scanClusterRoleBindings(ctx context.Context, korpScan *korpv1a
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, newFinding("ClusterRoleBinding", "", name, "ReferencesNonExistentRoleOrSubject", detectedAt))
+	}
+
+	return nil
+}
+
+// scanNetworkPolicies scans for orphaned NetworkPolicies
+func (s *Scanner) scanNetworkPolicies(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanNetworkPolicies(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedNetworkPolicies += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("NetworkPolicy", ns, name, "NoMatchingPods", detectedAt))
+	}
+
+	return nil
+}
+
+// scanPodDisruptionBudgets scans for orphaned PodDisruptionBudgets
+func (s *Scanner) scanPodDisruptionBudgets(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanPodDisruptionBudgets(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedPodDisruptionBudgets += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("PodDisruptionBudget", ns, name, "NoMatchingPods", detectedAt))
+	}
+
+	return nil
+}
+
+// scanHPAs scans for orphaned HorizontalPodAutoscalers
+func (s *Scanner) scanHPAs(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanHPAs(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedHPAs += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("HorizontalPodAutoscaler", ns, name, "TargetNotFound", detectedAt))
 	}
 
 	return nil

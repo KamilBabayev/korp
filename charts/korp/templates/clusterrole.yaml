@@ -88,6 +88,27 @@ rules:
       - networking.k8s.io
     resources:
       - ingresses
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - delete
+
+  # Policy resources to scan and cleanup
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - get
+      - list
+      - delete
+
+  # Autoscaling resources to scan and cleanup
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
     verbs:
       - get
       - list

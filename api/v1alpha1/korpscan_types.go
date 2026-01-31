@@ -369,6 +369,18 @@ type ScanSummary struct {
 	// OrphanedClusterRoleBindings is the count of orphaned ClusterRoleBindings
 	// +optional
 	OrphanedClusterRoleBindings int `json:"orphanedClusterRoleBindings,omitempty"`
+
+	// OrphanedNetworkPolicies is the count of orphaned NetworkPolicies (selector matches no pods)
+	// +optional
+	OrphanedNetworkPolicies int `json:"orphanedNetworkPolicies,omitempty"`
+
+	// OrphanedPodDisruptionBudgets is the count of orphaned PodDisruptionBudgets (selector matches no pods)
+	// +optional
+	OrphanedPodDisruptionBudgets int `json:"orphanedPodDisruptionBudgets,omitempty"`
+
+	// OrphanedHPAs is the count of orphaned HorizontalPodAutoscalers (targeting non-existent workloads)
+	// +optional
+	OrphanedHPAs int `json:"orphanedHPAs,omitempty"`
 }
 
 // TotalOrphans returns the sum of all orphaned resources
@@ -380,7 +392,8 @@ func (s *ScanSummary) TotalOrphans() int {
 		s.OrphanedCronJobs + s.OrphanedReplicaSets +
 		s.OrphanedServiceAccounts + s.OrphanedRoles +
 		s.OrphanedClusterRoles + s.OrphanedRoleBindings +
-		s.OrphanedClusterRoleBindings
+		s.OrphanedClusterRoleBindings + s.OrphanedNetworkPolicies +
+		s.OrphanedPodDisruptionBudgets + s.OrphanedHPAs
 }
 
 // Finding represents a single orphaned resource

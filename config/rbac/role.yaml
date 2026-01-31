@@ -84,6 +84,40 @@ rules:
       - networking.k8s.io
     resources:
       - ingresses
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - delete
+
+  # Policy resources to scan and cleanup
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - get
+      - list
+      - delete
+
+  # Autoscaling resources to scan and cleanup
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - get
+      - list
+      - delete
+
+  # RBAC resources to scan and cleanup
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+      - clusterroles
+      - rolebindings
+      - clusterrolebindings
     verbs:
       - get
       - list

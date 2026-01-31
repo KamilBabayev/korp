@@ -147,22 +147,25 @@ func (c *Cleaner) Clean(ctx context.Context, findings []korpv1alpha1.Finding, sp
 func (c *Cleaner) isResourceTypeAllowed(resourceType string, allowedTypes map[string]bool) bool {
 	// Map Finding.ResourceType to spec resource type names
 	typeMapping := map[string]string{
-		"ConfigMap":             "configmaps",
-		"Secret":                "secrets",
-		"PersistentVolumeClaim": "pvcs",
-		"Service":               "services",
-		"Deployment":            "deployments",
-		"StatefulSet":           "statefulsets",
-		"DaemonSet":             "daemonsets",
-		"Job":                   "jobs",
-		"CronJob":               "cronjobs",
-		"ReplicaSet":            "replicasets",
-		"ServiceAccount":        "serviceaccounts",
-		"Ingress":               "ingresses",
-		"Role":                  "roles",
-		"ClusterRole":           "clusterroles",
-		"RoleBinding":           "rolebindings",
-		"ClusterRoleBinding":    "clusterrolebindings",
+		"ConfigMap":               "configmaps",
+		"Secret":                  "secrets",
+		"PersistentVolumeClaim":   "pvcs",
+		"Service":                 "services",
+		"Deployment":              "deployments",
+		"StatefulSet":             "statefulsets",
+		"DaemonSet":               "daemonsets",
+		"Job":                     "jobs",
+		"CronJob":                 "cronjobs",
+		"ReplicaSet":              "replicasets",
+		"ServiceAccount":          "serviceaccounts",
+		"Ingress":                 "ingresses",
+		"Role":                    "roles",
+		"ClusterRole":             "clusterroles",
+		"RoleBinding":             "rolebindings",
+		"ClusterRoleBinding":      "clusterrolebindings",
+		"NetworkPolicy":           "networkpolicies",
+		"PodDisruptionBudget":     "poddisruptionbudgets",
+		"HorizontalPodAutoscaler": "hpas",
 	}
 
 	specType, ok := typeMapping[resourceType]
@@ -292,6 +295,24 @@ func (c *Cleaner) getResourceLabels(ctx context.Context, finding korpv1alpha1.Fi
 			return nil, err
 		}
 		return obj.Labels, nil
+	case "NetworkPolicy":
+		obj, err := c.client.NetworkingV1().NetworkPolicies(finding.Namespace).Get(ctx, finding.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return obj.Labels, nil
+	case "PodDisruptionBudget":
+		obj, err := c.client.PolicyV1().PodDisruptionBudgets(finding.Namespace).Get(ctx, finding.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return obj.Labels, nil
+	case "HorizontalPodAutoscaler":
+		obj, err := c.client.AutoscalingV2().HorizontalPodAutoscalers(finding.Namespace).Get(ctx, finding.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return obj.Labels, nil
 	default:
 		return nil, fmt.Errorf("unsupported resource type: %s", finding.ResourceType)
 	}
@@ -334,6 +355,12 @@ func (c *Cleaner) deleteResource(ctx context.Context, finding korpv1alpha1.Findi
 		return c.client.RbacV1().RoleBindings(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
 	case "ClusterRoleBinding":
 		return c.client.RbacV1().ClusterRoleBindings().Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+	case "NetworkPolicy":
+		return c.client.NetworkingV1().NetworkPolicies(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+	case "PodDisruptionBudget":
+		return c.client.PolicyV1().PodDisruptionBudgets(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+	case "HorizontalPodAutoscaler":
+		return c.client.AutoscalingV2().HorizontalPodAutoscalers(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
 	default:
 		return fmt.Errorf("unsupported resource type for deletion: %s", finding.ResourceType)
 	}

@@ -5,6 +5,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -708,4 +709,126 @@ func isBuiltInClusterRole(name string) bool {
 		"gce:podsecuritypolicy:privileged": true,
 	}
 	return builtInRoles[name]
+}
+
+// OrphanNetworkPolicies returns names of NetworkPolicies whose podSelector matches no pods
+func OrphanNetworkPolicies(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	policies, err := client.NetworkingV1().NetworkPolicies(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	pods, err := client.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, policy := range policies.Items {
+		selector, err := metav1.LabelSelectorAsSelector(&policy.Spec.PodSelector)
+		if err != nil {
+			continue
+		}
+
+		// Empty selector matches all pods
+		if selector.Empty() {
+			continue
+		}
+
+		hasMatchingPod := false
+		for _, pod := range pods.Items {
+			if selector.Matches(labels.Set(pod.Labels)) {
+				hasMatchingPod = true
+				break
+			}
+		}
+
+		if !hasMatchingPod {
+			names = append(names, policy.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanPodDisruptionBudgets returns names of PDBs whose selector matches no pods
+func OrphanPodDisruptionBudgets(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	pdbs, err := client.PolicyV1().PodDisruptionBudgets(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	pods, err := client.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, pdb := range pdbs.Items {
+		if pdb.Spec.Selector == nil {
+			continue
+		}
+
+		selector, err := metav1.LabelSelectorAsSelector(pdb.Spec.Selector)
+		if err != nil {
+			continue
+		}
+
+		// Empty selector matches all pods
+		if selector.Empty() {
+			continue
+		}
+
+		hasMatchingPod := false
+		for _, pod := range pods.Items {
+			if selector.Matches(labels.Set(pod.Labels)) {
+				hasMatchingPod = true
+				break
+			}
+		}
+
+		if !hasMatchingPod {
+			names = append(names, pdb.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanHPAs returns names of HPAs targeting non-existent Deployments/StatefulSets
+func OrphanHPAs(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	hpas, err := client.AutoscalingV2().HorizontalPodAutoscalers(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, hpa := range hpas.Items {
+		targetRef := hpa.Spec.ScaleTargetRef
+		targetExists := false
+
+		switch targetRef.Kind {
+		case "Deployment":
+			_, err := client.AppsV1().Deployments(ns).Get(ctx, targetRef.Name, metav1.GetOptions{})
+			if err == nil {
+				targetExists = true
+			}
+		case "StatefulSet":
+			_, err := client.AppsV1().StatefulSets(ns).Get(ctx, targetRef.Name, metav1.GetOptions{})
+			if err == nil {
+				targetExists = true
+			}
+		case "ReplicaSet":
+			_, err := client.AppsV1().ReplicaSets(ns).Get(ctx, targetRef.Name, metav1.GetOptions{})
+			if err == nil {
+				targetExists = true
+			}
+		default:
+			// Unknown target kind, assume it exists to avoid false positives
+			targetExists = true
+		}
+
+		if !targetExists {
+			names = append(names, hpa.Name)
+		}
+	}
+	return names, nil
 }
