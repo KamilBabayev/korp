@@ -168,6 +168,7 @@ func (c *Cleaner) isResourceTypeAllowed(resourceType string, allowedTypes map[st
 		"HorizontalPodAutoscaler": "hpas",
 		"PersistentVolume":        "pvs",
 		"Endpoints":               "endpoints",
+		"ResourceQuota":           "resourcequotas",
 	}
 
 	specType, ok := typeMapping[resourceType]
@@ -327,6 +328,12 @@ func (c *Cleaner) getResourceLabels(ctx context.Context, finding korpv1alpha1.Fi
 			return nil, err
 		}
 		return obj.Labels, nil
+	case "ResourceQuota":
+		obj, err := c.client.CoreV1().ResourceQuotas(finding.Namespace).Get(ctx, finding.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return obj.Labels, nil
 	default:
 		return nil, fmt.Errorf("unsupported resource type: %s", finding.ResourceType)
 	}
@@ -379,6 +386,8 @@ func (c *Cleaner) deleteResource(ctx context.Context, finding korpv1alpha1.Findi
 		return c.client.CoreV1().PersistentVolumes().Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
 	case "Endpoints":
 		return c.client.CoreV1().Endpoints(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+	case "ResourceQuota":
+		return c.client.CoreV1().ResourceQuotas(finding.Namespace).Delete(ctx, finding.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
 	default:
 		return fmt.Errorf("unsupported resource type for deletion: %s", finding.ResourceType)
 	}

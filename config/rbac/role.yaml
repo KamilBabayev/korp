@@ -46,11 +46,30 @@ rules:
       - list
       - delete
 
-  # Read-only core resources (for usage detection)
+  # Endpoints - scan and cleanup
   - apiGroups:
       - ""
     resources:
       - endpoints
+    verbs:
+      - get
+      - list
+      - delete
+
+  # ResourceQuotas - scan and cleanup
+  - apiGroups:
+      - ""
+    resources:
+      - resourcequotas
+    verbs:
+      - get
+      - list
+      - delete
+
+  # Read-only core resources (for usage detection)
+  - apiGroups:
+      - ""
+    resources:
       - pods
     verbs:
       - get

@@ -507,6 +507,10 @@ spec:
                   orphanedReplicaSets:
                     description: OrphanedReplicaSets is the count of orphaned ReplicaSets
                     type: integer
+                  orphanedResourceQuotas:
+                    description: OrphanedResourceQuotas is the count of orphaned ResourceQuotas
+                      (namespace has no pods)
+                    type: integer
                   orphanedRoleBindings:
                     description: OrphanedRoleBindings is the count of orphaned RoleBindings
                       (referencing non-existent roles/subjects)

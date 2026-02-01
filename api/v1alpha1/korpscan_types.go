@@ -389,6 +389,10 @@ type ScanSummary struct {
 	// OrphanedEndpoints is the count of orphaned Endpoints (no corresponding Service)
 	// +optional
 	OrphanedEndpoints int `json:"orphanedEndpoints,omitempty"`
+
+	// OrphanedResourceQuotas is the count of orphaned ResourceQuotas (namespace has no pods)
+	// +optional
+	OrphanedResourceQuotas int `json:"orphanedResourceQuotas,omitempty"`
 }
 
 // TotalOrphans returns the sum of all orphaned resources
@@ -402,7 +406,7 @@ func (s *ScanSummary) TotalOrphans() int {
 		s.OrphanedClusterRoles + s.OrphanedRoleBindings +
 		s.OrphanedClusterRoleBindings + s.OrphanedNetworkPolicies +
 		s.OrphanedPodDisruptionBudgets + s.OrphanedHPAs +
-		s.OrphanedPVs + s.OrphanedEndpoints
+		s.OrphanedPVs + s.OrphanedEndpoints + s.OrphanedResourceQuotas
 }
 
 // Finding represents a single orphaned resource

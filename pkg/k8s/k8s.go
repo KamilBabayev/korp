@@ -850,6 +850,40 @@ func OrphanPersistentVolumes(ctx context.Context, client *kubernetes.Clientset) 
 	return names, nil
 }
 
+// OrphanResourceQuotas returns names of ResourceQuotas in namespaces with no running pods
+// A ResourceQuota is considered orphaned if it exists but there are no pods to enforce limits on
+func OrphanResourceQuotas(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	quotas, err := client.CoreV1().ResourceQuotas(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	pods, err := client.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// If there are running pods, no quotas are orphaned
+	hasRunningPods := false
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == corev1.PodRunning || pod.Status.Phase == corev1.PodPending {
+			hasRunningPods = true
+			break
+		}
+	}
+
+	if hasRunningPods {
+		return nil, nil
+	}
+
+	// No running pods, all quotas are orphaned
+	var names []string
+	for _, quota := range quotas.Items {
+		names = append(names, quota.Name)
+	}
+	return names, nil
+}
+
 // OrphanEndpoints returns names of Endpoints without a corresponding Service
 // Kubernetes auto-creates Endpoints for Services, so orphan Endpoints are those
 // where the Service was deleted but the Endpoints object remains (manually created

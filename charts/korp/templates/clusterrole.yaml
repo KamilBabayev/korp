@@ -34,15 +34,6 @@ rules:
     verbs:
       - update
 
-  # Namespaces for listing during cluster-wide scans
-  - apiGroups:
-      - ""
-    resources:
-      - namespaces
-    verbs:
-      - get
-      - list
-
   # Core resources to scan and cleanup
   - apiGroups:
       - ""
@@ -52,13 +43,40 @@ rules:
       - persistentvolumeclaims
       - persistentvolumes
       - services
-      - endpoints
-      - pods
       - serviceaccounts
     verbs:
       - get
       - list
       - delete
+
+  # Endpoints - scan and cleanup
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - list
+      - delete
+
+  # ResourceQuotas - scan and cleanup
+  - apiGroups:
+      - ""
+    resources:
+      - resourcequotas
+    verbs:
+      - get
+      - list
+      - delete
+
+  # Read-only core resources (for usage detection)
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
 
   # Apps resources to scan and cleanup
   - apiGroups:

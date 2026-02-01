@@ -45,7 +45,8 @@ type KorpScanReconciler struct {
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;delete
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;delete
-// +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list
+// +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;delete
+// +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;delete
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;delete

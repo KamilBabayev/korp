@@ -54,7 +54,7 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 		types = []string{"configmaps", "secrets", "pvcs", "services", "deployments", "jobs", "ingresses",
 			"statefulsets", "daemonsets", "cronjobs", "replicasets", "serviceaccounts",
 			"roles", "clusterroles", "rolebindings", "clusterrolebindings",
-			"networkpolicies", "poddisruptionbudgets", "hpas", "pvs", "endpoints"}
+			"networkpolicies", "poddisruptionbudgets", "hpas", "pvs", "endpoints", "resourcequotas"}
 	}
 
 	// Get list of namespaces to scan
@@ -205,6 +205,11 @@ func (s *Scanner) scanNamespace(ctx context.Context, ns string, types []string, 
 
 		case "endpoints":
 			if err := s.scanEndpoints(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "resourcequotas":
+			if err := s.scanResourceQuotas(ctx, ns, korpScan, result, now); err != nil {
 				return err
 			}
 		}
@@ -617,6 +622,23 @@ func (s *Scanner) scanEndpoints(ctx context.Context, ns string, korpScan *korpv1
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, newFinding("Endpoints", ns, name, "NoMatchingService", detectedAt))
+	}
+
+	return nil
+}
+
+// scanResourceQuotas scans for orphaned ResourceQuotas (namespace has no pods)
+func (s *Scanner) scanResourceQuotas(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanResourceQuotas(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedResourceQuotas += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("ResourceQuota", ns, name, "NoPodsInNamespace", detectedAt))
 	}
 
 	return nil
