@@ -54,7 +54,7 @@ func (s *Scanner) Scan(ctx context.Context, korpScan *korpv1alpha1.KorpScan) (*S
 		types = []string{"configmaps", "secrets", "pvcs", "services", "deployments", "jobs", "ingresses",
 			"statefulsets", "daemonsets", "cronjobs", "replicasets", "serviceaccounts",
 			"roles", "clusterroles", "rolebindings", "clusterrolebindings",
-			"networkpolicies", "poddisruptionbudgets", "hpas"}
+			"networkpolicies", "poddisruptionbudgets", "hpas", "pvs", "endpoints"}
 	}
 
 	// Get list of namespaces to scan
@@ -200,6 +200,11 @@ func (s *Scanner) scanNamespace(ctx context.Context, ns string, types []string, 
 
 		case "hpas":
 			if err := s.scanHPAs(ctx, ns, korpScan, result, now); err != nil {
+				return err
+			}
+
+		case "endpoints":
+			if err := s.scanEndpoints(ctx, ns, korpScan, result, now); err != nil {
 				return err
 			}
 		}
@@ -443,7 +448,7 @@ func (s *Scanner) applyFilters(names []string, filters korpv1alpha1.FilterSpec) 
 	return filtered
 }
 
-// scanClusterScopedResources scans cluster-scoped resources (ClusterRoles, ClusterRoleBindings)
+// scanClusterScopedResources scans cluster-scoped resources (ClusterRoles, ClusterRoleBindings, PVs)
 func (s *Scanner) scanClusterScopedResources(ctx context.Context, types []string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, now metav1.Time) error {
 	for _, rt := range types {
 		switch rt {
@@ -453,6 +458,10 @@ func (s *Scanner) scanClusterScopedResources(ctx context.Context, types []string
 			}
 		case "clusterrolebindings":
 			if err := s.scanClusterRoleBindings(ctx, korpScan, result, now); err != nil {
+				return err
+			}
+		case "pvs":
+			if err := s.scanPersistentVolumes(ctx, korpScan, result, now); err != nil {
 				return err
 			}
 		}
@@ -574,6 +583,40 @@ func (s *Scanner) scanHPAs(ctx context.Context, ns string, korpScan *korpv1alpha
 
 	for _, name := range filtered {
 		result.Details = append(result.Details, newFinding("HorizontalPodAutoscaler", ns, name, "TargetNotFound", detectedAt))
+	}
+
+	return nil
+}
+
+// scanPersistentVolumes scans for orphaned PersistentVolumes
+func (s *Scanner) scanPersistentVolumes(ctx context.Context, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanPersistentVolumes(ctx, s.client)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedPVs += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("PersistentVolume", "", name, "NotBound", detectedAt))
+	}
+
+	return nil
+}
+
+// scanEndpoints scans for orphaned Endpoints (without corresponding Service)
+func (s *Scanner) scanEndpoints(ctx context.Context, ns string, korpScan *korpv1alpha1.KorpScan, result *ScanResult, detectedAt metav1.Time) error {
+	orphans, err := k8sutil.OrphanEndpoints(ctx, s.client, ns)
+	if err != nil {
+		return err
+	}
+
+	filtered := s.applyFilters(orphans, korpScan.Spec.Filters)
+	result.Summary.OrphanedEndpoints += len(filtered)
+
+	for _, name := range filtered {
+		result.Details = append(result.Details, newFinding("Endpoints", ns, name, "NoMatchingService", detectedAt))
 	}
 
 	return nil

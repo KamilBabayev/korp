@@ -475,6 +475,10 @@ spec:
                   orphanedDeployments:
                     description: OrphanedDeployments is the count of orphaned Deployments
                     type: integer
+                  orphanedEndpoints:
+                    description: OrphanedEndpoints is the count of orphaned Endpoints
+                      (no corresponding Service)
+                    type: integer
                   orphanedHPAs:
                     description: OrphanedHPAs is the count of orphaned HorizontalPodAutoscalers
                       (targeting non-existent workloads)
@@ -491,6 +495,10 @@ spec:
                     type: integer
                   orphanedPVCs:
                     description: OrphanedPVCs is the count of orphaned PersistentVolumeClaims
+                    type: integer
+                  orphanedPVs:
+                    description: OrphanedPVs is the count of orphaned PersistentVolumes
+                      (Released or Available state)
                     type: integer
                   orphanedPodDisruptionBudgets:
                     description: OrphanedPodDisruptionBudgets is the count of orphaned

@@ -24,14 +24,17 @@ type scanResult struct {
 	Secrets                  int      `json:"secrets"`
 	Services                 int      `json:"services"`
 	PVCs                     int      `json:"pvcs"`
+	Endpoints                int      `json:"endpoints"`
 	OrphanConfigMaps         int      `json:"orphan_configmaps"`
 	OrphanSecrets            int      `json:"orphan_secrets"`
 	OrphanPVCs               int      `json:"orphan_pvcs"`
 	ServicesNoEndpoints      int      `json:"services_no_endpoints"`
+	OrphanEndpoints          int      `json:"orphan_endpoints"`
 	OrphanConfigMapNames     []string `json:"orphan_configmap_names,omitempty"`
 	OrphanSecretNames        []string `json:"orphan_secret_names,omitempty"`
 	OrphanPVCNames           []string `json:"orphan_pvc_names,omitempty"`
 	ServicesNoEndpointsNames []string `json:"services_no_endpoints_names,omitempty"`
+	OrphanEndpointNames      []string `json:"orphan_endpoint_names,omitempty"`
 }
 
 func buildClient(kubeconfig string) (*kubernetes.Clientset, error) {
@@ -76,6 +79,9 @@ func countIssueTypes(res scanResult) int {
 		count++
 	}
 	if res.ServicesNoEndpoints > 0 {
+		count++
+	}
+	if res.OrphanEndpoints > 0 {
 		count++
 	}
 	return count
@@ -130,6 +136,10 @@ func Run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("listing pvcs: %w", err)
 	}
+	endpoints, err := client.CoreV1().Endpoints(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("listing endpoints: %w", err)
+	}
 
 	res := scanResult{
 		Namespace:  ns,
@@ -138,6 +148,7 @@ func Run(args []string) error {
 		Secrets:    len(secrets.Items),
 		Services:   len(svcs.Items),
 		PVCs:       len(pvcs.Items),
+		Endpoints:  len(endpoints.Items),
 	}
 
 	// Detect ownerless (no ownerReferences) items and collect names using helpers
@@ -157,16 +168,22 @@ func Run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("finding services without endpoints: %w", err)
 	}
+	orphanEPs, err := k8sutil.OrphanEndpoints(ctx, client, ns)
+	if err != nil {
+		return fmt.Errorf("finding orphan endpoints: %w", err)
+	}
 
 	res.OrphanConfigMapNames = orphanCMs
 	res.OrphanSecretNames = orphanSecrets
 	res.OrphanPVCNames = orphanPVCs
 	res.ServicesNoEndpointsNames = svcsNoEP
+	res.OrphanEndpointNames = orphanEPs
 
 	res.OrphanConfigMaps = len(orphanCMs)
 	res.OrphanSecrets = len(orphanSecrets)
 	res.OrphanPVCs = len(orphanPVCs)
 	res.ServicesNoEndpoints = len(svcsNoEP)
+	res.OrphanEndpoints = len(orphanEPs)
 
 	switch *output {
 	case "json":
@@ -193,6 +210,7 @@ func Run(args []string) error {
 		fmt.Printf("  Secrets:      %d\n", res.Secrets)
 		fmt.Printf("  Services:     %d\n", res.Services)
 		fmt.Printf("  PVCs:         %d\n", res.PVCs)
+		fmt.Printf("  Endpoints:    %d\n", res.Endpoints)
 
 		// Orphaned resources with inline details
 		fmt.Println("\nORPHANED RESOURCES:")
@@ -242,6 +260,17 @@ func Run(args []string) error {
 			}
 		} else {
 			fmt.Printf("\nServices: All have endpoints\n")
+		}
+
+		// Orphan Endpoints (no matching Service)
+		if res.OrphanEndpoints > 0 {
+			hasFindings = true
+			fmt.Printf("\nEndpoints: %d orphaned (no matching Service)\n", res.OrphanEndpoints)
+			for i, name := range res.OrphanEndpointNames {
+				fmt.Printf("   %d. %s\n", i+1, name)
+			}
+		} else {
+			fmt.Printf("\nEndpoints: All have matching Services\n")
 		}
 
 		// Footer

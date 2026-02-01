@@ -38,6 +38,7 @@ rules:
       - configmaps
       - secrets
       - persistentvolumeclaims
+      - persistentvolumes
       - services
       - serviceaccounts
     verbs:

@@ -381,6 +381,14 @@ type ScanSummary struct {
 	// OrphanedHPAs is the count of orphaned HorizontalPodAutoscalers (targeting non-existent workloads)
 	// +optional
 	OrphanedHPAs int `json:"orphanedHPAs,omitempty"`
+
+	// OrphanedPVs is the count of orphaned PersistentVolumes (Released or Available state)
+	// +optional
+	OrphanedPVs int `json:"orphanedPVs,omitempty"`
+
+	// OrphanedEndpoints is the count of orphaned Endpoints (no corresponding Service)
+	// +optional
+	OrphanedEndpoints int `json:"orphanedEndpoints,omitempty"`
 }
 
 // TotalOrphans returns the sum of all orphaned resources
@@ -393,7 +401,8 @@ func (s *ScanSummary) TotalOrphans() int {
 		s.OrphanedServiceAccounts + s.OrphanedRoles +
 		s.OrphanedClusterRoles + s.OrphanedRoleBindings +
 		s.OrphanedClusterRoleBindings + s.OrphanedNetworkPolicies +
-		s.OrphanedPodDisruptionBudgets + s.OrphanedHPAs
+		s.OrphanedPodDisruptionBudgets + s.OrphanedHPAs +
+		s.OrphanedPVs + s.OrphanedEndpoints
 }
 
 // Finding represents a single orphaned resource

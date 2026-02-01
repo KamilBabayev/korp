@@ -832,3 +832,56 @@ func OrphanHPAs(ctx context.Context, client *kubernetes.Clientset, ns string) ([
 	}
 	return names, nil
 }
+
+// OrphanPersistentVolumes returns names of PVs that are not bound (Released or Available state)
+func OrphanPersistentVolumes(ctx context.Context, client *kubernetes.Clientset) ([]string, error) {
+	pvs, err := client.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, pv := range pvs.Items {
+		// PV is orphaned if it's in Released or Available state (not bound)
+		if pv.Status.Phase == corev1.VolumeReleased || pv.Status.Phase == corev1.VolumeAvailable {
+			names = append(names, pv.Name)
+		}
+	}
+	return names, nil
+}
+
+// OrphanEndpoints returns names of Endpoints without a corresponding Service
+// Kubernetes auto-creates Endpoints for Services, so orphan Endpoints are those
+// where the Service was deleted but the Endpoints object remains (manually created
+// or from a deleted headless service scenario)
+func OrphanEndpoints(ctx context.Context, client *kubernetes.Clientset, ns string) ([]string, error) {
+	endpoints, err := client.CoreV1().Endpoints(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	services, err := client.CoreV1().Services(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build set of service names
+	serviceNames := make(map[string]bool)
+	for _, svc := range services.Items {
+		serviceNames[svc.Name] = true
+	}
+
+	var names []string
+	for _, ep := range endpoints.Items {
+		// Skip if it has owner references (managed by something else)
+		if len(ep.OwnerReferences) > 0 {
+			continue
+		}
+
+		// Endpoint is orphaned if no Service with the same name exists
+		if !serviceNames[ep.Name] {
+			names = append(names, ep.Name)
+		}
+	}
+	return names, nil
+}
