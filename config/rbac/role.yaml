@@ -31,6 +31,15 @@ rules:
     verbs:
       - update
 
+  # Namespaces - for listing namespaces when scanning all
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+
   # Core resources to scan and cleanup
   - apiGroups:
       - ""
